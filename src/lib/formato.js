@@ -1,32 +1,21 @@
 // src/lib/formato.js
-import { LOTE_ESTANDAR } from "./sapParser";
+import { totalesSap } from "../api/entities";
 
 export const num = (n) => Number(n ?? 0).toLocaleString("es-MX");
 
 export const hora = (iso) =>
   iso
-    ? new Date(iso).toLocaleString("es-MX", {
-        day: "2-digit",
-        month: "short",
-        hour: "2-digit",
-        minute: "2-digit",
-      })
+    ? new Date(iso).toLocaleString("es-MX", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" })
     : "";
 
-export const esPico = (b) => Number(b.cantidad_sap) > 0 && Number(b.cantidad_sap) < LOTE_ESTANDAR;
+export const fecha = (iso) =>
+  iso ? new Date(iso).toLocaleDateString("es-MX", { day: "2-digit", month: "short", year: "numeric" }) : "";
 
 export const ETAPAS = {
-  VIRGEN: { nombre: "Virgen", color: "bg-slate-700 text-slate-100" },
-  RECUBIERTA: { nombre: "Recubierta", color: "bg-blue-500/20 text-blue-300 border border-blue-500/30" },
-  IMPRESA: { nombre: "Impresa", color: "bg-emerald-500/20 text-emerald-300 border border-emerald-500/30" },
+  VIRGEN: { nombre: "Virgen", color: "bg-pink-500/15 text-pink-200 border border-pink-400/40" },
+  RECUBIERTA: { nombre: "Recubierta", color: "bg-orange-500/15 text-orange-200 border border-orange-400/40" },
+  IMPRESA: { nombre: "Impresa", color: "bg-violet-500/15 text-violet-200 border border-violet-400/40" },
   OTRO: { nombre: "Otro", color: "bg-slate-800 text-slate-400" },
-};
-
-export const ESTADOS = {
-  PENDIENTE: { nombre: "Pendiente", color: "bg-slate-800 text-slate-400" },
-  OK: { nombre: "✓ Verificado", color: "bg-emerald-500/20 text-emerald-300 border border-emerald-500/30" },
-  DIFERENCIA: { nombre: "⚠ Diferencia", color: "bg-amber-500/20 text-amber-300 border border-amber-500/30" },
-  SOBRANTE: { nombre: "✚ No está en SAP", color: "bg-red-500/20 text-red-300 border border-red-500/30" },
 };
 
 export const limpiarCodigo = (texto) =>
@@ -35,34 +24,59 @@ export const limpiarCodigo = (texto) =>
     .toUpperCase()
     .replace(/[^A-Z0-9-]/g, "");
 
-export const calcularResumen = (bultos) => {
-  const enSap = bultos.filter((b) => b.en_sap);
-  const r = {
-    total: enSap.length,
-    laminas: 0,
-    ok: 0,
-    diferencia: 0,
-    pendiente: 0,
-    sobrante: bultos.filter((b) => b.estado === "SOBRANTE").length,
-    fueraDeSap: bultos.filter((b) => !b.en_sap && b.estado !== "SOBRANTE").length,
-    porEtapa: {
-      VIRGEN: { laminas: 0, bultos: 0, picos: 0 },
-      RECUBIERTA: { laminas: 0, bultos: 0, picos: 0 },
-      IMPRESA: { laminas: 0, bultos: 0, picos: 0 },
-      OTRO: { laminas: 0, bultos: 0, picos: 0 },
-    },
-  };
-  for (const b of enSap) {
-    r.laminas += Number(b.cantidad_sap);
-    if (b.estado === "OK") r.ok++;
-    else if (b.estado === "DIFERENCIA") r.diferencia++;
-    else r.pendiente++;
-    const e = r.porEtapa[b.etapa] ?? r.porEtapa.OTRO;
-    e.laminas += Number(b.cantidad_sap);
-    e.bultos++;
-    if (esPico(b)) e.picos++;
+export const claveUbicacion = (zona, carril, posicion) => `${zona}|${carril}|${posicion}`;
+
+// Lotes por posición del croquis (ordenados de abajo hacia arriba)
+export const mapaPosiciones = (registros) => {
+  const m = new Map();
+  for (const r of registros) {
+    if (!r.zona || !r.carril || !r.posicion) continue;
+    const k = claveUbicacion(r.zona, r.carril, r.posicion);
+    if (!m.has(k)) m.set(k, []);
+    m.get(k).push(r);
   }
-  const pct = r.total ? ((r.ok + r.diferencia) / r.total) * 100 : 0;
-  r.avance = pct > 0 && pct < 10 ? Math.round(pct * 10) / 10 : Math.round(pct);
-  return r;
+  for (const lista of m.values()) lista.sort((a, b) => a.orden - b.orden);
+  return m;
+};
+
+export const calcularResumen = (sap, registros, conteo) => {
+  const totales = conteo?.estado === "CERRADO" && conteo.totales_sap ? conteo.totales_sap : totalesSap(sap);
+  const base = () => ({ verificados: 0, piezas: 0, observaciones: 0, diferencias: 0 });
+  const por = { VIRGEN: base(), RECUBIERTA: base(), IMPRESA: base(), OTRO: base() };
+  let sobrantes = 0;
+  let enSeguimiento = 0;
+  for (const r of registros) {
+    if (r.estado === "SOBRANTE") sobrantes++;
+    if (r.motivo && !r.posicion) enSeguimiento++;
+    if (r.estado === "SOBRANTE") continue;
+    const e = por[r.etapa] ?? por.OTRO;
+    e.verificados++;
+    e.piezas += Number(r.cantidad_fisica ?? 0);
+    if (r.motivo) e.observaciones++;
+    if (r.estado === "DIFERENCIA") e.diferencias++;
+  }
+  const pct = (a, b) => {
+    if (!b) return 0;
+    const p = (a / b) * 100;
+    return p > 0 && p < 10 ? Math.round(p * 10) / 10 : Math.min(100, Math.round(p));
+  };
+  const zonas = {};
+  for (const z of ["VIRGEN", "RECUBIERTA", "IMPRESA"]) {
+    zonas[z] = { ...por[z], total: totales[z] ?? 0, avance: pct(por[z].verificados, totales[z] ?? 0) };
+  }
+  const verificados = ["VIRGEN", "RECUBIERTA", "IMPRESA", "OTRO"].reduce((a, z) => a + por[z].verificados, 0);
+  return {
+    zonas,
+    general: {
+      verificados,
+      total: totales.total ?? 0,
+      avance: pct(verificados, totales.total ?? 0),
+      piezas: Object.values(por).reduce((a, e) => a + e.piezas, 0),
+      observaciones: Object.values(por).reduce((a, e) => a + e.observaciones, 0),
+      diferencias: Object.values(por).reduce((a, e) => a + e.diferencias, 0),
+    },
+    sobrantes,
+    enSeguimiento,
+    fueraDeSap: sap.filter((s) => !s.en_sap).length,
+  };
 };

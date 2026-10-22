@@ -1,328 +1,213 @@
 // src/api/entities.js
-// Capa de datos de la app. Toda la app habla SOLO con este archivo.
+// Capa de datos de la app. Toda la app habla SOLO con este archivo, así que
+// para pasar a Cloudflare D1 basta con reescribir este archivo con la misma interfaz.
 //
-//  - Si existen VITE_SUPABASE_URL y VITE_SUPABASE_ANON_KEY → usa Supabase
-//    (datos compartidos entre PC de Citrix y celulares, en tiempo real).
-//  - Si no existen → usa localStorage (modo demo, solo en este navegador).
+// MODO ACTUAL: demo local (localStorage). Los datos viven solo en este navegador.
 //
-// Interfaz (igual en ambos modos):
-//   Bulto.list()                         → todos los bultos
-//   Bulto.sincronizarSap(filas, {marcarFaltantes}) → upsert del reporte SAP; marca los que ya no vienen
-//   Bulto.registrarConteo(id, cambios)   → guarda el check físico
-//   Bulto.registrarSobrante(datos)       → bulto escaneado que no está en SAP
-//   Bulto.reiniciarConteo()              → todo vuelve a PENDIENTE
-//   Bulto.suscribir(cb)                  → avisa cuando otro dispositivo cambia algo
-//   Movimiento.list() / Movimiento.create(datos)
+// Entidades:
+//   Sap        → último reporte de SAP (un renglón por material|lote)
+//   Conteo     → cada inventario físico (uno "EN_CURSO" a la vez; los anteriores quedan "CERRADO")
+//   Registro   → cada bulto contado en un conteo, con su ubicación (zona, carril, posición)
+//   Movimiento → bitácora
 
-import { createClient } from "@supabase/supabase-js";
+export const MODO_DATOS = "LOCAL";
 
-const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
-const SUPABASE_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY;
-
-export const MODO_DATOS = SUPABASE_URL && SUPABASE_KEY ? "SUPABASE" : "LOCAL";
+const K = {
+  sap: "wip3_sap",
+  conteos: "wip3_conteos",
+  registros: "wip3_registros",
+  movimientos: "wip3_movimientos",
+};
 
 const ahora = () => new Date().toISOString();
+const nuevoId = () =>
+  globalThis.crypto?.randomUUID?.() ?? `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
 
-const CAMPOS_SAP = [
-  "clave",
-  "lote",
-  "material",
-  "texto_breve",
-  "centro",
-  "almacen",
-  "unidad",
-  "cantidad_sap",
-  "en_calidad",
-  "etapa",
-  "calibre",
-];
+const oyentes = new Set();
+const avisar = () => oyentes.forEach((cb) => cb());
 
-const soloCamposSap = (f) =>
-  Object.fromEntries(CAMPOS_SAP.map((c) => [c, f[c] ?? null]));
+const leer = (k) => {
+  try {
+    return JSON.parse(localStorage.getItem(k) || "[]");
+  } catch {
+    return [];
+  }
+};
+const escribir = (k, datos, { silencioso = false } = {}) => {
+  try {
+    localStorage.setItem(k, JSON.stringify(datos));
+  } catch (e) {
+    throw new Error(
+      "No hay espacio en el almacenamiento del navegador. Borra conteos antiguos o usa la versión con base de datos. (" + e.message + ")",
+      { cause: e }
+    );
+  }
+  if (!silencioso) avisar();
+};
 
-const AUDITORIA_VACIA = {
-  estado: "PENDIENTE", // PENDIENTE | OK | DIFERENCIA | SOBRANTE
-  cantidad_fisica: null,
-  verificado_por: null,
-  verificado_en: null,
+if (typeof window !== "undefined") {
+  window.addEventListener("storage", (e) => {
+    if (Object.values(K).includes(e.key)) avisar();
+  });
+}
+
+// Migración: la versión anterior guardaba el reporte en "wip_bultos_v2"
+(() => {
+  try {
+    if (localStorage.getItem(K.sap)) return;
+    const viejo = JSON.parse(localStorage.getItem("wip_bultos_v2") || "[]");
+    const sap = viejo
+      .filter((b) => b.estado !== "SOBRANTE" && b.en_sap)
+      .map((b) => ({
+        clave: b.clave,
+        lote: b.lote,
+        material: b.material,
+        texto_breve: b.texto_breve,
+        centro: b.centro,
+        almacen: b.almacen,
+        unidad: b.unidad,
+        cantidad_sap: b.cantidad_sap,
+        en_calidad: b.en_calidad,
+        etapa: b.etapa,
+        calibre: b.calibre,
+        en_sap: true,
+        actualizado_en: b.actualizado_en,
+      }));
+    if (sap.length) localStorage.setItem(K.sap, JSON.stringify(sap));
+  } catch {
+    /* sin datos previos */
+  }
+})();
+
+const CAMPOS_SAP = ["clave", "lote", "material", "texto_breve", "centro", "almacen", "unidad", "cantidad_sap", "en_calidad", "etapa", "calibre"];
+const soloSap = (f) => Object.fromEntries(CAMPOS_SAP.map((c) => [c, f[c] ?? null]));
+
+export const totalesSap = (sap) => {
+  const t = { VIRGEN: 0, RECUBIERTA: 0, IMPRESA: 0, OTRO: 0, total: 0 };
+  for (const s of sap) {
+    if (!s.en_sap) continue;
+    t[s.etapa in t ? s.etapa : "OTRO"]++;
+    t.total++;
+  }
+  return t;
 };
 
 // ======================================================================
-//  MODO LOCAL (localStorage)
-// ======================================================================
-const crearLocal = () => {
-  const K_BULTOS = "wip_bultos_v2";
-  const K_MOV = "wip_movimientos_v2";
-  const oyentes = new Set();
+export const Sap = {
+  list: async () => leer(K.sap),
 
-  const leer = (k) => {
-    try {
-      return JSON.parse(localStorage.getItem(k) || "[]");
-    } catch {
-      return [];
-    }
-  };
-  const escribir = (k, datos) => {
-    localStorage.setItem(k, JSON.stringify(datos));
-    oyentes.forEach((cb) => cb());
-  };
-
-  // Otra pestaña del mismo navegador cambió los datos
-  window.addEventListener("storage", (e) => {
-    if (e.key === K_BULTOS || e.key === K_MOV) oyentes.forEach((cb) => cb());
-  });
-
-  const Bulto = {
-    list: async () => leer(K_BULTOS),
-
-    sincronizarSap: async (filas, { marcarFaltantes = true } = {}) => {
-      const actuales = leer(K_BULTOS);
-      const porClave = new Map(actuales.map((b) => [b.clave, b]));
-      const clavesNuevas = new Set(filas.map((f) => f.clave));
-      let creados = 0;
-      let actualizados = 0;
-      let cambiosCantidad = 0;
-
-      for (const f of filas) {
-        const existente = porClave.get(f.clave);
-        if (existente) {
-          if (Number(existente.cantidad_sap) !== Number(f.cantidad_sap)) cambiosCantidad++;
-          Object.assign(existente, soloCamposSap(f), { en_sap: true, actualizado_en: ahora() });
-          actualizados++;
-        } else {
-          porClave.set(f.clave, {
-            id: crypto.randomUUID(),
-            ...soloCamposSap(f),
-            ...AUDITORIA_VACIA,
-            en_sap: true,
-            creado_en: ahora(),
-            actualizado_en: ahora(),
-          });
-          creados++;
-        }
+  sincronizar: async (filas, { marcarFaltantes = true } = {}) => {
+    const porClave = new Map(leer(K.sap).map((s) => [s.clave, s]));
+    const nuevas = new Set(filas.map((f) => f.clave));
+    let creados = 0;
+    let cambiosCantidad = 0;
+    for (const f of filas) {
+      const e = porClave.get(f.clave);
+      if (e) {
+        if (Number(e.cantidad_sap) !== Number(f.cantidad_sap)) cambiosCantidad++;
+        Object.assign(e, soloSap(f), { en_sap: true, actualizado_en: ahora() });
+      } else {
+        porClave.set(f.clave, { ...soloSap(f), en_sap: true, actualizado_en: ahora() });
+        creados++;
       }
-      let yaNoEnSap = 0;
-      for (const b of porClave.values()) {
-        if (marcarFaltantes && !clavesNuevas.has(b.clave) && b.en_sap) {
-          b.en_sap = false;
+    }
+    let yaNoEnSap = 0;
+    if (marcarFaltantes) {
+      for (const s of porClave.values()) {
+        if (s.en_sap && !nuevas.has(s.clave)) {
+          s.en_sap = false;
           yaNoEnSap++;
         }
       }
-      escribir(K_BULTOS, [...porClave.values()]);
-      return { creados, actualizados, cambiosCantidad, yaNoEnSap, total: filas.length };
-    },
-
-    registrarConteo: async (id, cambios) => {
-      const datos = leer(K_BULTOS);
-      const b = datos.find((x) => x.id === id);
-      if (!b) throw new Error("Bulto no encontrado");
-      Object.assign(b, cambios, { actualizado_en: ahora() });
-      escribir(K_BULTOS, datos);
-      return b;
-    },
-
-    registrarSobrante: async ({ lote, cantidad_fisica, verificado_por }) => {
-      const datos = leer(K_BULTOS);
-      const nuevo = {
-        id: crypto.randomUUID(),
-        clave: `SOBRANTE|${lote}`,
-        lote,
-        material: "",
-        texto_breve: "Escaneado en piso — no está en el reporte SAP",
-        centro: "",
-        almacen: "",
-        unidad: "",
-        cantidad_sap: 0,
-        en_calidad: 0,
-        etapa: "OTRO",
-        calibre: "",
-        estado: "SOBRANTE",
-        cantidad_fisica,
-        verificado_por,
-        verificado_en: ahora(),
-        en_sap: false,
-        creado_en: ahora(),
-        actualizado_en: ahora(),
-      };
-      const sinDuplicar = datos.filter((x) => x.clave !== nuevo.clave);
-      escribir(K_BULTOS, [nuevo, ...sinDuplicar]);
-      return nuevo;
-    },
-
-    reiniciarConteo: async () => {
-      const datos = leer(K_BULTOS)
-        .filter((b) => b.estado !== "SOBRANTE")
-        .map((b) => ({ ...b, ...AUDITORIA_VACIA }));
-      escribir(K_BULTOS, datos);
-    },
-
-    eliminarFueraDeSap: async () => {
-      escribir(K_BULTOS, leer(K_BULTOS).filter((b) => b.en_sap || b.estado === "SOBRANTE"));
-    },
-
-    suscribir: (cb) => {
-      oyentes.add(cb);
-      return () => oyentes.delete(cb);
-    },
-  };
-
-  const Movimiento = {
-    list: async () => leer(K_MOV).slice(0, 200),
-    create: async (m) => {
-      const mov = { id: crypto.randomUUID(), creado_en: ahora(), ...m };
-      escribir(K_MOV, [mov, ...leer(K_MOV)].slice(0, 1000));
-      return mov;
-    },
-  };
-
-  return { Bulto, Movimiento };
-};
-
-// ======================================================================
-//  MODO SUPABASE
-// ======================================================================
-const crearSupabase = () => {
-  const sb = createClient(SUPABASE_URL, SUPABASE_KEY);
-  const T_BULTOS = "bultos";
-  const T_MOV = "movimientos";
-
-  const verificar = ({ data, error }) => {
-    if (error) throw new Error(error.message);
-    return data;
-  };
-
-  // PostgREST devuelve máximo 1000 filas por consulta: paginar
-  const traerTodo = async (tabla, columnas = "*") => {
-    const pagina = 1000;
-    let desde = 0;
-    let todo = [];
-    for (;;) {
-      const datos = verificar(
-        await sb.from(tabla).select(columnas).order("lote").range(desde, desde + pagina - 1)
-      );
-      todo = todo.concat(datos);
-      if (datos.length < pagina) break;
-      desde += pagina;
     }
-    return todo;
-  };
+    escribir(K.sap, [...porClave.values()]);
+    return { creados, actualizados: filas.length - creados, cambiosCantidad, yaNoEnSap, total: filas.length };
+  },
 
-  const enBloques = async (arreglo, tam, fn) => {
-    for (let i = 0; i < arreglo.length; i += tam) await fn(arreglo.slice(i, i + tam));
-  };
-
-  const Bulto = {
-    list: () => traerTodo(T_BULTOS),
-
-    sincronizarSap: async (filas, { marcarFaltantes = true } = {}) => {
-      const actuales = await traerTodo(T_BULTOS, "id,clave,cantidad_sap,en_sap");
-      const porClave = new Map(actuales.map((b) => [b.clave, b]));
-      const clavesNuevas = new Set(filas.map((f) => f.clave));
-      let creados = 0;
-      let cambiosCantidad = 0;
-      for (const f of filas) {
-        const e = porClave.get(f.clave);
-        if (!e) creados++;
-        else if (Number(e.cantidad_sap) !== Number(f.cantidad_sap)) cambiosCantidad++;
-      }
-
-      // El upsert solo toca columnas de SAP: el estado del conteo se conserva
-      const payload = filas.map((f) => ({ ...soloCamposSap(f), en_sap: true, actualizado_en: ahora() }));
-      await enBloques(payload, 500, async (bloque) =>
-        verificar(await sb.from(T_BULTOS).upsert(bloque, { onConflict: "clave" }))
-      );
-
-      const idsFuera = actuales
-        .filter((b) => marcarFaltantes && b.en_sap && !clavesNuevas.has(b.clave))
-        .map((b) => b.id);
-      await enBloques(idsFuera, 200, async (bloque) =>
-        verificar(await sb.from(T_BULTOS).update({ en_sap: false }).in("id", bloque))
-      );
-
-      return {
-        creados,
-        actualizados: filas.length - creados,
-        cambiosCantidad,
-        yaNoEnSap: idsFuera.length,
-        total: filas.length,
-      };
-    },
-
-    registrarConteo: async (id, cambios) =>
-      verificar(
-        await sb
-          .from(T_BULTOS)
-          .update({ ...cambios, actualizado_en: ahora() })
-          .eq("id", id)
-          .select()
-          .single()
-      ),
-
-    registrarSobrante: async ({ lote, cantidad_fisica, verificado_por }) =>
-      verificar(
-        await sb
-          .from(T_BULTOS)
-          .upsert(
-            {
-              clave: `SOBRANTE|${lote}`,
-              lote,
-              material: "",
-              texto_breve: "Escaneado en piso — no está en el reporte SAP",
-              cantidad_sap: 0,
-              etapa: "OTRO",
-              calibre: "",
-              estado: "SOBRANTE",
-              cantidad_fisica,
-              verificado_por,
-              verificado_en: ahora(),
-              en_sap: false,
-            },
-            { onConflict: "clave" }
-          )
-          .select()
-          .single()
-      ),
-
-    reiniciarConteo: async () => {
-      verificar(await sb.from(T_BULTOS).delete().eq("estado", "SOBRANTE"));
-      verificar(
-        await sb.from(T_BULTOS).update(AUDITORIA_VACIA).neq("estado", "PENDIENTE")
-      );
-    },
-
-    eliminarFueraDeSap: async () => {
-      verificar(
-        await sb.from(T_BULTOS).delete().eq("en_sap", false).neq("estado", "SOBRANTE")
-      );
-    },
-
-    suscribir: (cb) => {
-      let temporizador = null;
-      const avisar = () => {
-        clearTimeout(temporizador);
-        temporizador = setTimeout(cb, 400); // agrupa ráfagas (ej. una sincronización)
-      };
-      const canal = sb
-        .channel("cambios-inventario")
-        .on("postgres_changes", { event: "*", schema: "public", table: T_BULTOS }, avisar)
-        .on("postgres_changes", { event: "INSERT", schema: "public", table: T_MOV }, avisar)
-        .subscribe();
-      return () => sb.removeChannel(canal);
-    },
-  };
-
-  const Movimiento = {
-    list: async () =>
-      verificar(
-        await sb.from(T_MOV).select("*").order("creado_en", { ascending: false }).limit(200)
-      ),
-    create: async (m) => verificar(await sb.from(T_MOV).insert(m).select().single()),
-  };
-
-  return { Bulto, Movimiento };
+  quitarFueraDeSap: async () => escribir(K.sap, leer(K.sap).filter((s) => s.en_sap)),
 };
 
-const api = MODO_DATOS === "SUPABASE" ? crearSupabase() : crearLocal();
+// ======================================================================
+export const Conteo = {
+  list: async () => leer(K.conteos).sort((a, b) => b.creado_en.localeCompare(a.creado_en)),
 
-export const Bulto = api.Bulto;
-export const Movimiento = api.Movimiento;
+  // Devuelve el conteo en curso; si no hay, lo crea
+  actual: async () => {
+    const conteos = leer(K.conteos);
+    let c = conteos.find((x) => x.estado === "EN_CURSO");
+    if (!c) {
+      c = { id: nuevoId(), estado: "EN_CURSO", creado_en: ahora(), cerrado_en: null, creado_por: null, totales_sap: null };
+      escribir(K.conteos, [c, ...conteos], { silencioso: true });
+    }
+    return c;
+  },
+
+  // Cierra el conteo en curso (guardando cómo estaba SAP) y abre uno nuevo vacío
+  nuevo: async (usuario) => {
+    const sap = leer(K.sap);
+    const conteos = leer(K.conteos).map((c) =>
+      c.estado === "EN_CURSO" ? { ...c, estado: "CERRADO", cerrado_en: ahora(), totales_sap: totalesSap(sap) } : c
+    );
+    const c = { id: nuevoId(), estado: "EN_CURSO", creado_en: ahora(), cerrado_en: null, creado_por: usuario || null, totales_sap: null };
+    escribir(K.conteos, [c, ...conteos]);
+    return c;
+  },
+
+  eliminar: async (id) => {
+    escribir(K.registros, leer(K.registros).filter((r) => r.conteo_id !== id), { silencioso: true });
+    escribir(K.movimientos, leer(K.movimientos).filter((m) => m.conteo_id !== id), { silencioso: true });
+    escribir(K.conteos, leer(K.conteos).filter((c) => c.id !== id));
+  },
+};
+
+// ======================================================================
+export const Registro = {
+  list: async (conteoId) => leer(K.registros).filter((r) => r.conteo_id === conteoId),
+
+  // Un bulto (clave) solo puede estar una vez por conteo: si ya existe se actualiza (y se mueve)
+  guardar: async (datos) => {
+    const todos = leer(K.registros);
+    const i = todos.findIndex((r) => r.conteo_id === datos.conteo_id && r.clave === datos.clave);
+    const anterior = i === -1 ? null : { ...todos[i] };
+    const registro = {
+      ...(anterior ?? { id: nuevoId(), creado_en: ahora() }),
+      ...datos,
+      orden: Date.now(),
+      actualizado_en: ahora(),
+    };
+    if (i === -1) todos.push(registro);
+    else todos[i] = registro;
+    escribir(K.registros, todos);
+    return { registro, anterior };
+  },
+
+  actualizar: async (id, cambios) => {
+    const todos = leer(K.registros);
+    const r = todos.find((x) => x.id === id);
+    if (!r) throw new Error("Registro no encontrado");
+    Object.assign(r, cambios, { actualizado_en: ahora() });
+    if ("posicion" in cambios) r.orden = Date.now();
+    escribir(K.registros, todos);
+    return r;
+  },
+
+  eliminar: async (id) => escribir(K.registros, leer(K.registros).filter((r) => r.id !== id)),
+};
+
+// ======================================================================
+export const Movimiento = {
+  list: async (conteoId) =>
+    leer(K.movimientos)
+      .filter((m) => !conteoId || m.conteo_id === conteoId)
+      .slice(0, 300),
+  create: async (m) => {
+    const mov = { id: nuevoId(), creado_en: ahora(), ...m };
+    escribir(K.movimientos, [mov, ...leer(K.movimientos)].slice(0, 3000));
+    return mov;
+  },
+};
+
+export const suscribir = (cb) => {
+  oyentes.add(cb);
+  return () => oyentes.delete(cb);
+};
