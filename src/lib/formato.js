@@ -39,9 +39,23 @@ export const mapaPosiciones = (registros) => {
   return m;
 };
 
+// Totales de SAP para un conteo: los cerrados usan la foto guardada al cerrarlos
+const totalesDe = (sap, conteo) => {
+  const t = conteo?.estado === "CERRADO" && conteo.totales_sap ? conteo.totales_sap : totalesSap(sap);
+  // Formato antiguo (solo número de lotes)
+  const norm = (v) => (typeof v === "number" ? { lotes: v, piezas: 0 } : v ?? { lotes: 0, piezas: 0 });
+  return { VIRGEN: norm(t.VIRGEN), RECUBIERTA: norm(t.RECUBIERTA), IMPRESA: norm(t.IMPRESA), total: norm(t.total) };
+};
+
+const pct = (a, b) => {
+  if (!b) return 0;
+  const p = (a / b) * 100;
+  return p > 0 && p < 10 ? Math.round(p * 10) / 10 : Math.min(100, Math.round(p));
+};
+
 export const calcularResumen = (sap, registros, conteo) => {
-  const totales = conteo?.estado === "CERRADO" && conteo.totales_sap ? conteo.totales_sap : totalesSap(sap);
-  const base = () => ({ verificados: 0, piezas: 0, observaciones: 0, diferencias: 0 });
+  const totales = totalesDe(sap, conteo);
+  const base = () => ({ verificados: 0, piezas: 0, piezasSapContadas: 0, observaciones: 0, diferencias: 0 });
   const por = { VIRGEN: base(), RECUBIERTA: base(), IMPRESA: base(), OTRO: base() };
   let sobrantes = 0;
   let enSeguimiento = 0;
@@ -52,28 +66,33 @@ export const calcularResumen = (sap, registros, conteo) => {
     const e = por[r.etapa] ?? por.OTRO;
     e.verificados++;
     e.piezas += Number(r.cantidad_fisica ?? 0);
+    e.piezasSapContadas += Number(r.cantidad_sap ?? 0);
     if (r.motivo) e.observaciones++;
     if (r.estado === "DIFERENCIA") e.diferencias++;
   }
-  const pct = (a, b) => {
-    if (!b) return 0;
-    const p = (a / b) * 100;
-    return p > 0 && p < 10 ? Math.round(p * 10) / 10 : Math.min(100, Math.round(p));
-  };
   const zonas = {};
   for (const z of ["VIRGEN", "RECUBIERTA", "IMPRESA"]) {
-    zonas[z] = { ...por[z], total: totales[z] ?? 0, avance: pct(por[z].verificados, totales[z] ?? 0) };
+    zonas[z] = {
+      ...por[z],
+      total: totales[z].lotes,
+      piezasTotal: totales[z].piezas,
+      avance: pct(por[z].verificados, totales[z].lotes),
+      avancePiezas: pct(por[z].piezasSapContadas, totales[z].piezas),
+    };
   }
-  const verificados = ["VIRGEN", "RECUBIERTA", "IMPRESA", "OTRO"].reduce((a, z) => a + por[z].verificados, 0);
+  const suma = (k) => Object.values(por).reduce((a, e) => a + e[k], 0);
+  const verificados = suma("verificados");
   return {
     zonas,
     general: {
       verificados,
-      total: totales.total ?? 0,
-      avance: pct(verificados, totales.total ?? 0),
-      piezas: Object.values(por).reduce((a, e) => a + e.piezas, 0),
-      observaciones: Object.values(por).reduce((a, e) => a + e.observaciones, 0),
-      diferencias: Object.values(por).reduce((a, e) => a + e.diferencias, 0),
+      total: totales.total.lotes,
+      piezasTotal: totales.total.piezas,
+      avance: pct(verificados, totales.total.lotes),
+      avancePiezas: pct(suma("piezasSapContadas"), totales.total.piezas),
+      piezas: suma("piezas"),
+      observaciones: suma("observaciones"),
+      diferencias: suma("diferencias"),
     },
     sobrantes,
     enSeguimiento,

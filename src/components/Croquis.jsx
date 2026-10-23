@@ -1,7 +1,7 @@
 // src/components/Croquis.jsx
-// Mapa del almacén dibujado con las coordenadas del Excel del croquis.
+// Layout del almacén dibujado con las coordenadas del Excel del croquis.
 // Cada posición muestra una franja por lote, pintada según calibre / Ecotapa / aluminio.
-import { memo } from "react";
+import { memo, useEffect, useRef } from "react";
 import { CARRILES, FONDOS, TITULOS, ZONAS, COLUMNAS, FILAS, COLORES_LOTE, tipoColorLote } from "../lib/croquis";
 import { claveUbicacion } from "../lib/formato";
 
@@ -12,10 +12,30 @@ const OY = 22;
 const px = (col) => OX + (col - 1) * CW;
 const py = (row) => OY + (row - 1) * RH;
 
-function Croquis({ mapa, zonaFiltro = "TODAS", seleccion, onSeleccionar }) {
+const celdaDe = (k) => {
+  if (!k) return null;
+  const [zona, carril, pos] = k.split("|");
+  const c = CARRILES.find((x) => x.zona === zona && x.id === carril);
+  return c?.celdas[Number(pos) - 1] ?? null;
+};
+
+function Croquis({ mapa, zonaFiltro = "TODAS", seleccion, resaltado, onSeleccionar }) {
+  const cajaRef = useRef(null);
   const atenuar = (zona) => zonaFiltro !== "TODAS" && zonaFiltro !== zona;
+  const marca = celdaDe(resaltado);
+
+  // Llevar a la vista la posición del bulto buscado
+  useEffect(() => {
+    if (!marca || !cajaRef.current) return;
+    const caja = cajaRef.current;
+    const x = px(marca.col);
+    const visible = x >= caja.scrollLeft + 40 && x <= caja.scrollLeft + caja.clientWidth - 40;
+    if (!visible) caja.scrollTo({ left: Math.max(0, x - caja.clientWidth / 2), behavior: "smooth" });
+    caja.scrollIntoView({ behavior: "smooth", block: "nearest" });
+  }, [marca]);
+
   return (
-    <div className="overflow-x-auto rounded-xl bg-[#0d1528]">
+    <div ref={cajaRef} className="overflow-x-auto rounded-xl bg-[#0d1528]">
       <div className="relative" style={{ width: px(COLUMNAS + 1) + 16, height: py(FILAS) + 8 }}>
         {FONDOS.map((f, i) => (
           <div
@@ -49,14 +69,13 @@ function Croquis({ mapa, zonaFiltro = "TODAS", seleccion, onSeleccionar }) {
               : e.lado === "der"
               ? { left: px(e.col) + 2, top: py(e.row), width: 30, textAlign: "left" }
               : { left: px(e.col) - 6, top: py(e.row), width: 26, textAlign: "center" };
-          const texto = c.id === "DES" ? "DES" : c.id;
           return (
             <div
               key={`${c.zona}-${c.id}`}
               className="absolute font-mono text-[9px] font-bold leading-[13px] text-slate-300 whitespace-nowrap"
               style={{ ...estilo, opacity: atenuar(c.zona) ? 0.3 : 1 }}
             >
-              {texto}
+              {c.id}
             </div>
           );
         })}
@@ -93,6 +112,20 @@ function Croquis({ mapa, zonaFiltro = "TODAS", seleccion, onSeleccionar }) {
               </button>
             );
           })
+        )}
+        {marca && (
+          <>
+            <span
+              aria-hidden="true"
+              className="absolute rounded-full border-[3px] border-cyan-300 animate-ping pointer-events-none"
+              style={{ left: px(marca.col) - 9, top: py(marca.row) - 9, width: 32, height: 31, zIndex: 3 }}
+            />
+            <span
+              aria-hidden="true"
+              className="absolute rounded-md border-[3px] border-cyan-300 pointer-events-none"
+              style={{ left: px(marca.col) - 3, top: py(marca.row) - 3, width: CW + 6, height: RH + 6, zIndex: 3 }}
+            />
+          </>
         )}
       </div>
     </div>

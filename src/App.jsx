@@ -1,5 +1,5 @@
 // src/App.jsx
-// Inventario WIP con croquis: el reporte de SAP (MB52) da la lista de bultos;
+// Inventario WIP con layout: el reporte de SAP (MB52) da la lista de bultos;
 // desde el celular se registra cada bulto en su zona / carril / posición.
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Monitor, Smartphone, HardDrive } from "lucide-react";
@@ -33,13 +33,13 @@ export default function App() {
     const z = leerLocal("wip_zona_escaner", "VIRGEN");
     return ZONAS[z] ? z : "VIRGEN";
   });
-  const [zonaTablero, setZonaTablero] = useState("TODAS");
   const [sap, setSap] = useState([]);
   const [conteos, setConteos] = useState([]);
   const [conteoActual, setConteoActual] = useState(null);
   const [conteoVistoId, setConteoVistoId] = useState(null);
   const [registrosActual, setRegistrosActual] = useState([]);
   const [registrosVisto, setRegistrosVisto] = useState([]);
+  const [registrosTodos, setRegistrosTodos] = useState([]);
   const [movimientos, setMovimientos] = useState([]);
   const [cargando, setCargando] = useState(true);
   const [errorCarga, setErrorCarga] = useState("");
@@ -64,7 +64,7 @@ export default function App() {
   const cargar = useCallback(async () => {
     try {
       const actual = await Conteo.actual();
-      const [s, cs, ra] = await Promise.all([Sap.list(), Conteo.list(), Registro.list(actual.id)]);
+      const [s, cs, ra, todos] = await Promise.all([Sap.list(), Conteo.list(), Registro.list(actual.id), Registro.todos()]);
       const vistoId = vistoRef.current && cs.some((c) => c.id === vistoRef.current) ? vistoRef.current : actual.id;
       const [rv, mv] = await Promise.all([vistoId === actual.id ? ra : Registro.list(vistoId), Movimiento.list(vistoId)]);
       setSap(s);
@@ -73,6 +73,7 @@ export default function App() {
       setConteoVistoId(vistoId);
       setRegistrosActual(ra);
       setRegistrosVisto(rv);
+      setRegistrosTodos(todos);
       setMovimientos(mv);
       setErrorCarga("");
     } catch (e) {
@@ -184,7 +185,7 @@ export default function App() {
   const onNuevoConteo = async () => {
     if (
       !window.confirm(
-        "¿Iniciar un conteo nuevo?\n\nEl conteo actual se cierra y se guarda para consultarlo después. El croquis empieza vacío."
+        "¿Iniciar un conteo nuevo?\n\nEl conteo actual se cierra y se guarda para consultarlo después. El layout empieza vacío."
       )
     )
       return;
@@ -201,20 +202,20 @@ export default function App() {
     cargar();
   };
 
-  // Selector de zona (recuadro junto a Tablero / Escáner)
-  const zonaVista = vista === "ESCANER" ? zonaEscaner : zonaTablero;
-  const colorZona = ZONAS[zonaVista];
+  // Selector de zona del escáner (recuadro junto a Tablero / Escáner).
+  // En el tablero el filtro "Tipo de lámina" vive junto a los demás filtros.
+  const colorZona = ZONAS[zonaEscaner];
   const cambiarZona = (z) => {
-    if (vista === "ESCANER") {
-      setZonaEscaner(z);
-      guardarLocal("wip_zona_escaner", z);
-    } else setZonaTablero(z);
+    setZonaEscaner(z);
+    guardarLocal("wip_zona_escaner", z);
   };
 
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 p-3 md:p-6 font-sans">
       <nav className="max-w-[1720px] mx-auto mb-3 flex flex-wrap items-center justify-between gap-2">
-        <div className="grid grid-cols-3 gap-1.5 bg-slate-900 border border-slate-800 rounded-2xl p-1.5 w-full sm:w-auto sm:min-w-[460px]">
+        <div
+          className={`grid ${vista === "ESCANER" ? "grid-cols-3 sm:min-w-[460px]" : "grid-cols-2 sm:min-w-[300px]"} gap-1.5 bg-slate-900 border border-slate-800 rounded-2xl p-1.5 w-full sm:w-auto`}
+        >
           <button
             onClick={() => cambiarVista("TABLERO")}
             className={`h-11 flex items-center justify-center gap-2 px-3 rounded-xl text-[13px] font-bold cursor-pointer ${
@@ -231,9 +232,10 @@ export default function App() {
           >
             <Smartphone className="w-4 h-4" /> Escáner
           </button>
+          {vista === "ESCANER" && (
           <select
             aria-label="Zona"
-            value={zonaVista}
+            value={zonaEscaner}
             onChange={(e) => cambiarZona(e.target.value)}
             className="h-11 rounded-xl px-2 text-[13px] font-bold text-center cursor-pointer outline-none"
             style={
@@ -242,17 +244,13 @@ export default function App() {
                 : { background: "#020617", border: "1px solid #475569", color: "#e2e8f0" }
             }
           >
-            {vista === "TABLERO" && (
-              <option value="TODAS" className="bg-slate-900 text-white">
-                Todas las zonas
-              </option>
-            )}
             {ORDEN_ZONAS.map((z) => (
               <option key={z} value={z} className="bg-slate-900 text-white">
                 {ZONAS[z].nombre}
               </option>
             ))}
           </select>
+          )}
         </div>
         <span
           className="flex items-center gap-1.5 text-[11px] px-2.5 py-1 rounded-full bg-amber-500/10 text-amber-300"
@@ -290,13 +288,13 @@ export default function App() {
         <Tablero
           sap={sap}
           registros={registrosVisto}
+          registrosTodos={registrosTodos}
           movimientos={movimientos}
           conteos={conteos}
           conteoVisto={conteoVisto}
           conteoActual={conteoActual}
           onVerConteo={verConteo}
           resumen={resumenVisto}
-          zonaFiltro={zonaTablero}
           sincronizando={sincronizando}
           resultadoSync={resultadoSync}
           auditor={auditor}

@@ -7,9 +7,9 @@
 export const CAPACIDAD_POSICION = 5;
 
 export const ZONAS = {
-  VIRGEN: { id: "VIRGEN", nombre: "Virgen", titulo: "Lámina virgen", color: "#f472b6", texto: "#f9a8d4", fondo: "rgba(244,114,182,.13)", borde: "rgba(244,114,182,.55)" },
-  RECUBIERTA: { id: "RECUBIERTA", nombre: "Recubierta", titulo: "Lámina recubierta", color: "#fb923c", texto: "#fdba74", fondo: "rgba(251,146,60,.12)", borde: "rgba(251,146,60,.55)" },
-  IMPRESA: { id: "IMPRESA", nombre: "Impresa", titulo: "Lámina impresa", color: "#a78bfa", texto: "#c4b5fd", fondo: "rgba(167,139,250,.14)", borde: "rgba(167,139,250,.55)" },
+  VIRGEN: { id: "VIRGEN", nombre: "Virgen", titulo: "Lámina virgen", grafica: "#ec4899", color: "#f472b6", texto: "#f9a8d4", fondo: "rgba(244,114,182,.13)", borde: "rgba(244,114,182,.55)" },
+  RECUBIERTA: { id: "RECUBIERTA", nombre: "Recubierta", titulo: "Lámina recubierta", grafica: "#ea580c", color: "#fb923c", texto: "#fdba74", fondo: "rgba(251,146,60,.12)", borde: "rgba(251,146,60,.55)" },
+  IMPRESA: { id: "IMPRESA", nombre: "Impresa", titulo: "Lámina impresa", grafica: "#8b5cf6", color: "#a78bfa", texto: "#c4b5fd", fondo: "rgba(167,139,250,.14)", borde: "rgba(167,139,250,.55)" },
 };
 export const ORDEN_ZONAS = ["VIRGEN", "RECUBIERTA", "IMPRESA"];
 

@@ -82,12 +82,17 @@ if (typeof window !== "undefined") {
 const CAMPOS_SAP = ["clave", "lote", "material", "texto_breve", "centro", "almacen", "unidad", "cantidad_sap", "en_calidad", "etapa", "calibre"];
 const soloSap = (f) => Object.fromEntries(CAMPOS_SAP.map((c) => [c, f[c] ?? null]));
 
+// Lotes y piezas de SAP por proceso: { VIRGEN: { lotes, piezas }, ..., total: { lotes, piezas } }
 export const totalesSap = (sap) => {
-  const t = { VIRGEN: 0, RECUBIERTA: 0, IMPRESA: 0, OTRO: 0, total: 0 };
+  const vacio = () => ({ lotes: 0, piezas: 0 });
+  const t = { VIRGEN: vacio(), RECUBIERTA: vacio(), IMPRESA: vacio(), OTRO: vacio(), total: vacio() };
   for (const s of sap) {
     if (!s.en_sap) continue;
-    t[s.etapa in t ? s.etapa : "OTRO"]++;
-    t.total++;
+    const e = t[s.etapa in t ? s.etapa : "OTRO"];
+    e.lotes++;
+    e.piezas += Number(s.cantidad_sap ?? 0);
+    t.total.lotes++;
+    t.total.piezas += Number(s.cantidad_sap ?? 0);
   }
   return t;
 };
@@ -163,6 +168,9 @@ export const Conteo = {
 // ======================================================================
 export const Registro = {
   list: async (conteoId) => leer(K.registros).filter((r) => r.conteo_id === conteoId),
+
+  // Todos los registros de todos los conteos (para tendencias e historial de un bulto)
+  todos: async () => leer(K.registros),
 
   // Un bulto (clave) solo puede estar una vez por conteo: si ya existe se actualiza (y se mueve)
   guardar: async (datos) => {
