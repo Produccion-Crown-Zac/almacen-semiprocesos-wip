@@ -1,35 +1,48 @@
 # Inventario WIP · Layout y conteo por bulto
 
-App para hacer el inventario físico del almacén de semiprocesos contra el reporte de SAP,
-registrando **dónde está cada bulto** (zona, carril, posición y nivel del layout).
+Aplicación para hacer el inventario físico del almacén de semiprocesos (Planta Tapas) contra el reporte
+MB52 de SAP, registrando **dónde está cada bulto** (zona, carril, posición y nivel del layout).
 
-- **Tablero (PC dentro de Citrix):** se carga el MB52 copiando la tabla en SAP y presionando **Ctrl+V**,
-  o arrastrando el archivo exportado (.MHTML, .XLS, .XLSX, .CSV, .TXT). Tiene cuatro subapartados:
-  **Resumen** (exactitud de inventario, desviación y avance por día / semana / SKU / proceso),
-  **Layout** (mapa del almacén y buscador de bultos), **Seguimiento** (observaciones) y **Bultos** (tabla).
-  La bitácora se abre con el ícono del reloj.
-- **Escáner (celular):** se elige la zona, el carril y la posición; se escanea cada bulto y se le da
-  **✓** (check) o **>** (con observación: Faltante, Consumo pendiente, En proceso, Ubicación incorrecta,
-  Lote mal escrito, Sin papeleta, Otro). Si una posición ya tiene 5 lotes aparece una advertencia.
+- **Tablero (PC dentro de Citrix):** carga del MB52 con **Ctrl+V** o arrastrando el archivo exportado
+  (.MHTML, .XLS, .XLSX, .CSV, .TXT). Subapartados: **Resumen** (exactitud de inventario, desviación y avance
+  por día / semana / SKU / proceso), **Layout** (mapa y buscador de bultos), **Seguimiento** (observaciones)
+  y **Bultos** (tabla). Bitácora en el ícono del reloj. Historial de conteos.
+- **Escáner (celular):** zona, carril y posición; escaneo del código de barras de la hoja de bulto (= Lote
+  en SAP); **✓** check o **>** observación. Advertencia al registrar más de 5 lotes en una posición.
+- **Inicio de sesión** con usuario y contraseña. Perfiles: **Administrador** (todo, incluida la
+  administración de usuarios) y **Usuario** (todo, excepto usuarios). Sesión de 12 horas.
 
-## Layout
-Definido en `src/lib/croquis.js`, tomado de `CROQUIS_INVENTARIO.xlsx`:
-- Recubierta: carriles 1–19 (12 o 14 posiciones), Desperdicio (14) y Ecotapa 1–3 (13).
-- Impresa: carriles 1–15 (3 posiciones), 16–23 (10 posiciones).
-- Virgen: carriles 1–6 (25 posiciones), 7–9 (4) y 10–11 (6).
-Hasta 5 lotes por posición (nivel 1 = la tarima del piso).
+## Arquitectura
+- Interfaz: React + Vite + Tailwind (`src/`).
+- API: Cloudflare Pages Functions (`functions/api/[[ruta]].js`).
+- Base de datos: Cloudflare D1 (`migrations/0001_inicial.sql`).
+- Contraseñas cifradas con PBKDF2-SHA256 (100,000 iteraciones); sesiones en cookie HttpOnly.
 
-## Exactitud de inventario
-Exactitud = (1 − Σ |piezas físicas − piezas SAP| ÷ Σ piezas SAP) × 100 sobre los lotes contados (en piezas, no en lotes).
-Desviación = 100 − Exactitud. Meta: 95 % o más (`src/lib/metricas.js`). Colores: calibre 70 verde, calibre 75 blanco, Ecotapa rosa, aluminio azul, sin calibre gris.
+## Publicar en Cloudflare (una sola vez)
+1. **Base de datos:** Cloudflare → *Storage & Databases → D1* → *Create* → nombre `inventario-wip`.
+   Abre la base → *Console* → pega todo `migrations/0001_inicial.sql` → *Execute*.
+2. **Sitio:** *Workers & Pages → Create → Pages → Connect to Git* → organización `Produccion-Crown-Zac`,
+   repositorio `almacen-semiprocesos-wip`. Framework: *None* (o Vite) · Build command: `npm run build` ·
+   Build output directory: `dist`.
+3. **Enlace con la base:** en el proyecto de Pages → *Settings → Bindings → Add → D1 database* →
+   Variable name `DB` → base `inventario-wip` (en *Production* y *Preview*).
+4. **Código de instalación:** *Settings → Variables and Secrets → Add* → tipo *Secret* →
+   nombre `CODIGO_INSTALACION`, valor = una clave que solo tú conozcas.
+5. *Deployments* → *Retry deployment* (o haz un `git push`) para que tome el enlace y la variable.
+6. Abre la dirección `*.pages.dev`: la primera pantalla pide el código de instalación y crea al
+   **administrador**. Desde *Usuarios* da de alta al resto del personal.
 
-## Datos
-Por ahora en **modo demo**: todo se guarda en el navegador de cada dispositivo (`src/api/entities.js`).
-La siguiente etapa es conectar Cloudflare D1 reescribiendo solo ese archivo.
-
-## Desarrollo
+## Pruebas locales (opcional)
 ```
 npm install
-npm run dev
+npm run build
+npx wrangler d1 execute inventario-wip --local --file migrations/0001_inicial.sql
+echo CODIGO_INSTALACION=prueba > .dev.vars
+npx wrangler pages dev dist --d1 DB=inventario-wip
 ```
-Build: `npm run build` → carpeta `dist`.
+
+## Límites del plan gratuito de Cloudflare
+D1: 5 millones de filas leídas y 100,000 escritas al día. Workers/Pages Functions: 100,000 peticiones al
+día y 10 ms de CPU por petición (el cifrado de contraseña tarda ~20 ms; Cloudflare tolera excesos
+ocasionales). Si aparece el error 1102 al iniciar sesión o el uso crece, el plan Workers Paid (5 USD/mes)
+eleva estos límites.

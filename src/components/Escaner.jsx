@@ -36,7 +36,7 @@ const Flecha = ({ etiqueta, onClick, children }) => (
   </button>
 );
 
-export default function Escaner({ sap, registros, conteo, zona, auditor, setAuditor, resumen, onCambio }) {
+export default function Escaner({ sap, registros, conteo, zona, auditor, resumen, onCambio }) {
   // ---------- Ubicación actual ----------
   const carriles = carrilesDeZona(zona);
   const [ubic, setUbic] = useState(() => {
@@ -327,17 +327,12 @@ export default function Escaner({ sap, registros, conteo, zona, auditor, setAudi
         </div>
       </section>
 
-      {/* Nombre */}
-      <label className="flex items-center gap-2.5 h-12 px-3.5 bg-slate-900 border border-slate-800 rounded-xl">
+      {/* Quién está contando (la sesión iniciada) */}
+      <div className="flex items-center gap-2.5 h-12 px-3.5 bg-slate-900 border border-slate-800 rounded-xl text-[15px] text-white">
         <User className="w-4 h-4 text-slate-400 shrink-0" />
-        <input
-          value={auditor}
-          onChange={(e) => setAuditor(e.target.value)}
-          placeholder="Tu nombre o número de empleado"
-          aria-label="Tu nombre o número de empleado"
-          className="flex-1 min-w-0 bg-transparent text-[15px] text-white outline-none placeholder:text-slate-500"
-        />
-      </label>
+        <span className="truncate">{auditor}</span>
+        <span className="ml-auto text-[11px] text-slate-500 shrink-0">registra a tu nombre</span>
+      </div>
 
       {/* Carril y posición */}
       <section className="flex flex-col gap-2">
@@ -602,7 +597,6 @@ export default function Escaner({ sap, registros, conteo, zona, auditor, setAudi
             </div>
           )}
 
-          {!auditor.trim() && <p className="m-0 text-center text-sm font-semibold text-amber-300">Escribe tu nombre arriba para poder registrar.</p>}
 
           <div className="grid grid-cols-2 gap-3">
             <button

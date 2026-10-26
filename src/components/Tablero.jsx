@@ -64,6 +64,8 @@ export default function Tablero({
   conteoActual,
   onVerConteo,
   resumen,
+  meta,
+  onCambiarMeta,
   sincronizando,
   resultadoSync,
   auditor,
@@ -361,7 +363,9 @@ export default function Tablero({
         </div>
       </section>
 
-      {sub === "RESUMEN" && <Resumen registros={registros} registrosTodos={registrosTodos} resumen={resumen} zonaFiltro={zonaFiltro} onUbicar={ubicar} />}
+      {sub === "RESUMEN" && (
+        <Resumen registros={registros} registrosTodos={registrosTodos} resumen={resumen} zonaFiltro={zonaFiltro} onUbicar={ubicar} meta={meta} onCambiarMeta={onCambiarMeta} />
+      )}
       {sub === "LAYOUT" && (
         <LayoutVista
           sap={sap}

@@ -5,7 +5,7 @@ import { useMemo, useState } from "react";
 import { CheckCircle2, AlertTriangle } from "lucide-react";
 import { ZONAS, MOTIVOS, textoUbicacion } from "../lib/croquis";
 import { num } from "../lib/formato";
-import { metricas, agrupar, pct1, META_EXACTITUD } from "../lib/metricas";
+import { metricas, agrupar, pct1 } from "../lib/metricas";
 
 const VERDE = "#22c55e";
 const ROJO = "#ef4444";
@@ -14,29 +14,29 @@ const Tarjeta = ({ children, className = "" }) => (
   <div className={`bg-slate-900 border border-slate-800 rounded-2xl p-4 ${className}`}>{children}</div>
 );
 
-const Estado = ({ valor }) =>
+const Estado = ({ valor, meta }) =>
   valor == null ? (
     <span className="text-xs text-slate-500">Sin lotes contados</span>
-  ) : valor >= META_EXACTITUD ? (
+  ) : valor >= meta ? (
     <span className="inline-flex items-center gap-1 text-xs font-bold text-emerald-300">
-      <CheckCircle2 className="w-4 h-4" /> En meta (≥ {META_EXACTITUD}%)
+      <CheckCircle2 className="w-4 h-4" /> En meta (≥ {meta}%)
     </span>
   ) : (
     <span className="inline-flex items-center gap-1 text-xs font-bold text-red-300">
-      <AlertTriangle className="w-4 h-4" /> Debajo de la meta ({META_EXACTITUD}%)
+      <AlertTriangle className="w-4 h-4" /> Debajo de la meta ({meta}%)
     </span>
   );
 
 // Barra horizontal 0–100 % con la marca de la meta
-const BarraMeta = ({ valor, alto = 10 }) => (
+const BarraMeta = ({ valor, meta, alto = 10 }) => (
   <div className="relative w-full rounded-full bg-slate-800" style={{ height: alto }}>
     {valor != null && (
       <div
         className="absolute left-0 top-0 h-full rounded-full"
-        style={{ width: `${Math.max(1, Math.min(100, valor))}%`, background: valor >= META_EXACTITUD ? VERDE : ROJO }}
+        style={{ width: `${Math.max(1, Math.min(100, valor))}%`, background: valor >= meta ? VERDE : ROJO }}
       />
     )}
-    <div className="absolute -top-1 -bottom-1 w-0.5 bg-slate-200" style={{ left: `${META_EXACTITUD}%` }} title={`Meta ${META_EXACTITUD}%`} />
+    <div className="absolute -top-1 -bottom-1 w-0.5 bg-slate-200" style={{ left: `${meta}%` }} title={`Meta ${meta}%`} />
   </div>
 );
 
@@ -77,7 +77,10 @@ const AGRUPACIONES = [
   ["PROCESO", "Proceso"],
 ];
 
-export default function Resumen({ registros, registrosTodos, resumen, zonaFiltro, onUbicar }) {
+export default function Resumen({ registros, registrosTodos, resumen, zonaFiltro, onUbicar, meta = 95, onCambiarMeta }) {
+  const [editandoMeta, setEditandoMeta] = useState(false);
+  const [metaInput, setMetaInput] = useState(String(meta));
+  const [errorMeta, setErrorMeta] = useState("");
   const [por, setPor] = useState(() => {
     try {
       return localStorage.getItem("wip_resumen_por") || "PROCESO";
@@ -126,8 +129,54 @@ export default function Resumen({ registros, registrosTodos, resumen, zonaFiltro
         <Tarjeta className="flex flex-col gap-2 border-slate-700">
           <span className="text-xs font-bold tracking-[.06em] uppercase text-slate-300">Exactitud de inventario</span>
           <span className="text-4xl font-black text-white">{pct1(m.exactitud)}</span>
-          <BarraMeta valor={m.exactitud} />
-          <Estado valor={m.exactitud} />
+          <BarraMeta valor={m.exactitud} meta={meta} />
+          <Estado valor={m.exactitud} meta={meta} />
+          {editandoMeta ? (
+            <form
+              onSubmit={async (e) => {
+                e.preventDefault();
+                setErrorMeta("");
+                try {
+                  await onCambiarMeta(Number(metaInput));
+                  setEditandoMeta(false);
+                } catch (err) {
+                  setErrorMeta(err.message);
+                }
+              }}
+              className="flex items-center gap-2 text-xs"
+            >
+              <label className="flex items-center gap-1 text-slate-300">
+                Meta
+                <input
+                  type="number"
+                  min="50"
+                  max="100"
+                  step="0.5"
+                  value={metaInput}
+                  onChange={(e) => setMetaInput(e.target.value)}
+                  className="w-16 px-2 py-1 rounded-md bg-slate-950 border border-slate-600 text-white"
+                />
+                %
+              </label>
+              <button className="px-2 py-1 rounded-md bg-amber-500 text-slate-950 font-bold cursor-pointer">Guardar</button>
+              <button type="button" onClick={() => setEditandoMeta(false)} className="text-slate-400 cursor-pointer">
+                Cancelar
+              </button>
+              {errorMeta && <span className="text-red-300">{errorMeta}</span>}
+            </form>
+          ) : (
+            onCambiarMeta && (
+              <button
+                onClick={() => {
+                  setMetaInput(String(meta));
+                  setEditandoMeta(true);
+                }}
+                className="self-start text-xs text-slate-400 underline hover:text-white cursor-pointer"
+              >
+                Cambiar meta ({meta}%)
+              </button>
+            )
+          )}
         </Tarjeta>
         <Tarjeta className="flex flex-col gap-2">
           <span className="text-xs font-bold tracking-[.06em] uppercase text-slate-300">Desviación</span>
@@ -173,7 +222,7 @@ export default function Resumen({ registros, registrosTodos, resumen, zonaFiltro
               {por === "DIA" || por === "SEMANA"
                 ? "Todos los conteos guardados, según la fecha en que se registró cada lote."
                 : "Lotes del conteo seleccionado."}{" "}
-              La línea blanca marca la meta de {META_EXACTITUD}%.
+              La línea blanca marca la meta de {meta}%.
             </p>
           </div>
           <div role="tablist" aria-label="Agrupar por" className="flex rounded-xl bg-slate-950 border border-slate-700 p-1">
@@ -225,7 +274,7 @@ export default function Resumen({ registros, registrosTodos, resumen, zonaFiltro
                     <td className="py-2.5 pr-3">
                       <div className="flex items-center gap-2">
                         <div className="flex-1">
-                          <BarraMeta valor={g.exactitud} alto={8} />
+                          <BarraMeta valor={g.exactitud} meta={meta} alto={8} />
                         </div>
                         <span className="w-14 text-right font-bold text-white">{pct1(g.exactitud)}</span>
                       </div>
