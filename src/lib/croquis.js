@@ -55,14 +55,16 @@ const construir = () => {
   );
 
   // ---- Virgen ----
-  for (let L = 1; L <= 6; L++) {
+  // Bloque principal: carriles 1 a 11 de 25 posiciones.
+  // Los carriles chicos se renumeraron: antes 7-9 → ahora 12-14, antes 10-11 → ahora 15-16.
+  for (let L = 1; L <= 11; L++) {
     const row = 18 + 2 * (L - 1);
     agregar("VIRGEN", String(L), String(L), { col: 114, row, lado: "der" }, rango(25, (p) => ({ col: 113 - p, row })));
   }
-  [["7", 83], ["8", 85], ["9", 87]].forEach(([id, col]) =>
+  [["12", 83], ["13", 85], ["14", 87]].forEach(([id, col]) =>
     agregar("VIRGEN", id, id, { col, row: 42, lado: "abajo" }, rango(4, (p) => ({ col, row: 41 - p })))
   );
-  [["10", 85], ["11", 87]].forEach(([id, col]) =>
+  [["15", 85], ["16", 87]].forEach(([id, col]) =>
     agregar("VIRGEN", id, id, { col, row: 29, lado: "arriba" }, rango(6, (p) => ({ col, row: 30 + p })))
   );
   return carriles;
@@ -79,6 +81,7 @@ export const FONDOS = [
   { zona: "IMPRESA", c1: 61, c2: 84, r1: 25, r2: 35 },
   { zona: "IMPRESA", c1: 29, c2: 60, r1: 29, r2: 34 },
   { zona: "VIRGEN", c1: 85, c2: 115, r1: 17, r2: 28 },
+  { zona: "VIRGEN", c1: 89, c2: 115, r1: 29, r2: 38 },
   { zona: "VIRGEN", c1: 85, c2: 88, r1: 29, r2: 36 },
   { zona: "VIRGEN", c1: 82, c2: 88, r1: 37, r2: 43 },
 ];
