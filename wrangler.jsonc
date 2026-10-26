@@ -16,7 +16,7 @@
     {
       "binding": "DB",
       "database_name": "inventario-wip",
-      "database_id": "PEGA-AQUI-EL-ID"
+      "database_id": "cd8544f3-43e0-45b4-879e-4cae6c7173ee"
     }
   ],
   "observability": { "enabled": true }
