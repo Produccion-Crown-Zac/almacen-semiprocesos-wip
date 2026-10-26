@@ -220,6 +220,7 @@ export const normalizarReporteSap = (matriz) => {
     vistos.add(clave);
     const texto = celda(fila, "texto");
     const libre = parsearCantidad(celda(fila, "libre"));
+    const calidad = parsearCantidad(celda(fila, "calidad"));
     filas.push({
       clave,
       lote,
@@ -228,8 +229,10 @@ export const normalizarReporteSap = (matriz) => {
       centro: celda(fila, "centro"),
       almacen: celda(fila, "almacen"),
       unidad: celda(fila, "unidad"),
-      cantidad_sap: libre,
-      en_calidad: parsearCantidad(celda(fila, "calidad")),
+      // Las piezas del bulto pueden estar en "Libre utilización" o en "En control calidad":
+      // si libre viene en 0 se toma la de calidad (se suman por si algún día vienen las dos)
+      cantidad_sap: libre + calidad,
+      en_calidad: calidad,
       etapa: derivarEtapa(texto),
       calibre: derivarCalibre(texto),
     });
