@@ -13,24 +13,23 @@ MB52 de SAP, registrando **dónde está cada bulto** (zona, carril, posición y 
   administración de usuarios) y **Usuario** (todo, excepto usuarios). Sesión de 12 horas.
 
 ## Arquitectura
-- Interfaz: React + Vite + Tailwind (`src/`).
-- API: Cloudflare Pages Functions (`functions/api/[[ruta]].js`).
-- Base de datos: Cloudflare D1 (`migrations/0001_inicial.sql`).
+- Interfaz: React + Vite + Tailwind (`src/`), publicada como archivos estáticos (`dist/`).
+- API: `server/api.js`, servida por un Cloudflare Worker (`server/worker.js`) en `/api/*`.
+  (`functions/api/[[ruta]].js` permite publicar lo mismo como Cloudflare Pages, si se prefiere.)
+- Base de datos: Cloudflare D1 (`migrations/0001_inicial.sql`), enlazada como `DB` en `wrangler.jsonc`.
 - Contraseñas cifradas con PBKDF2-SHA256 (100,000 iteraciones); sesiones en cookie HttpOnly.
 
-## Publicar en Cloudflare (una sola vez)
-1. **Base de datos:** Cloudflare → *Storage & Databases → D1* → *Create* → nombre `inventario-wip`.
-   Abre la base → *Console* → pega todo `migrations/0001_inicial.sql` → *Execute*.
-2. **Sitio:** *Workers & Pages → Create → Pages → Connect to Git* → organización `Produccion-Crown-Zac`,
-   repositorio `almacen-semiprocesos-wip`. Framework: *None* (o Vite) · Build command: `npm run build` ·
-   Build output directory: `dist`.
-3. **Enlace con la base:** en el proyecto de Pages → *Settings → Bindings → Add → D1 database* →
-   Variable name `DB` → base `inventario-wip` (en *Production* y *Preview*).
-4. **Código de instalación:** *Settings → Variables and Secrets → Add* → tipo *Secret* →
-   nombre `CODIGO_INSTALACION`, valor = una clave que solo tú conozcas.
-5. *Deployments* → *Retry deployment* (o haz un `git push`) para que tome el enlace y la variable.
-6. Abre la dirección `*.pages.dev`: la primera pantalla pide el código de instalación y crea al
-   **administrador**. Desde *Usuarios* da de alta al resto del personal.
+## Publicar en Cloudflare (Worker)
+1. **Base de datos:** *Storage & Databases → D1* → *Create* → `inventario-wip`. Abre la base → *Console*
+   → pega todo `migrations/0001_inicial.sql` → *Execute*.
+2. Copia el **Database ID** de esa base y pégalo en `wrangler.jsonc` en lugar de `PEGA-AQUI-EL-ID`.
+   Haz `git push`.
+3. **Worker:** *Workers & Pages → Create → Import a repository* → `Produccion-Crown-Zac/almacen-semiprocesos-wip`.
+   Build command `npm run build` · Deploy command `npx wrangler deploy`.
+4. **Código de instalación:** en el Worker → *Settings → Variables and Secrets → Add* → tipo *Secret* →
+   `CODIGO_INSTALACION` = una clave que solo tú conozcas.
+5. Abre la dirección `*.workers.dev`: la primera pantalla pide el código y crea al **administrador**.
+   Desde *Usuarios* da de alta al resto del personal.
 
 ## Pruebas locales (opcional)
 ```
@@ -38,11 +37,11 @@ npm install
 npm run build
 npx wrangler d1 execute inventario-wip --local --file migrations/0001_inicial.sql
 echo CODIGO_INSTALACION=prueba > .dev.vars
-npx wrangler pages dev dist --d1 DB=inventario-wip
+npx wrangler dev
 ```
 
 ## Límites del plan gratuito de Cloudflare
-D1: 5 millones de filas leídas y 100,000 escritas al día. Workers/Pages Functions: 100,000 peticiones al
+D1: 5 millones de filas leídas y 100,000 escritas al día. Workers: 100,000 peticiones al
 día y 10 ms de CPU por petición (el cifrado de contraseña tarda ~20 ms; Cloudflare tolera excesos
 ocasionales). Si aparece el error 1102 al iniciar sesión o el uso crece, el plan Workers Paid (5 USD/mes)
 eleva estos límites.

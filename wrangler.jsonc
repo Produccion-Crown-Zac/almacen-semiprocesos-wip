@@ -1,0 +1,23 @@
+// Configuración de Cloudflare para publicar la app como Worker.
+// IMPORTANTE: reemplaza PEGA-AQUI-EL-ID por el "Database ID" de tu base D1 "inventario-wip"
+// (Cloudflare → Storage & Databases → D1 → inventario-wip → aparece arriba, junto al nombre).
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "almacen-semiprocesos-wip",
+  "main": "server/worker.js",
+  "compatibility_date": "2026-10-01",
+  "assets": {
+    "directory": "./dist",
+    "binding": "ASSETS",
+    "not_found_handling": "single-page-application",
+    "run_worker_first": ["/api/*"]
+  },
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "inventario-wip",
+      "database_id": "PEGA-AQUI-EL-ID"
+    }
+  ],
+  "observability": { "enabled": true }
+}

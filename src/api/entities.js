@@ -32,10 +32,16 @@ async function api(ruta, { metodo = "GET", datos } = {}) {
     throw new Error("Sin conexión con el servidor. Revisa la señal e intenta de nuevo.");
   }
   let cuerpo = null;
-  try {
-    cuerpo = await resp.json();
-  } catch {
-    /* respuesta vacía */
+  const esJson = (resp.headers.get("content-type") || "").includes("application/json");
+  if (esJson) {
+    try {
+      cuerpo = await resp.json();
+    } catch {
+      /* respuesta vacía */
+    }
+  } else {
+    // El servidor respondió con la página en vez de datos: la API no está publicada o configurada
+    throw new Error("El servidor no está respondiendo como API. Revisa que el Worker de Cloudflare tenga su archivo wrangler.jsonc y la base de datos enlazada.");
   }
   if (resp.status === 401 && !["login", "setup", "estado"].includes(ruta)) {
     oyentesSesion.forEach((cb) => cb());
