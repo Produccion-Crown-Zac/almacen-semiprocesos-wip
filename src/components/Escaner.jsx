@@ -10,6 +10,13 @@ import { ETAPAS, num, hora, limpiarCodigo } from "../lib/formato";
 import { PilaPosicion, Advertencia, HojaObservacion } from "./Comunes";
 
 const ID_LECTOR = "lector-camara-wip";
+const PREFIJO_ECO = "ECOTAP";
+
+// En modo Ecotapa, "67" se busca como "ECOTAP67"; si ya trae letras se deja igual
+const conPrefijo = (texto, ecotapa) => {
+  const t = String(texto ?? "").trim();
+  return ecotapa && /^\d+$/.test(t) ? PREFIJO_ECO + t : t;
+};
 
 const leerLocal = (k, def) => {
   try {
@@ -79,6 +86,8 @@ export default function Escaner({ sap, registros, conteo, zona, auditor, resumen
   const [camaraActiva, setCamaraActiva] = useState(false);
   const [errorCamara, setErrorCamara] = useState("");
   const [codigo, setCodigo] = useState("");
+  // Modo Ecotapa: el teclado sigue siendo numérico y la app antepone "ECOTAP" al número
+  const [ecotapa, setEcotapa] = useState(false);
   const [coincidencias, setCoincidencias] = useState(null);
   const [seleccionado, setSeleccionado] = useState(null); // fila SAP o { sobrante: true, lote }
   const [conteoInput, setConteoInput] = useState("");
@@ -110,7 +119,7 @@ export default function Escaner({ sap, registros, conteo, zona, auditor, resumen
   const buscar = (texto) => {
     const limpio = limpiarCodigo(texto);
     if (!limpio) return;
-    setCodigo(limpio);
+    setCodigo(ecotapa && limpio.startsWith(PREFIJO_ECO) ? limpio.slice(PREFIJO_ECO.length) : limpio);
     const encontrados = sapRef.current.filter((s) => s.lote === limpio && s.en_sap);
     setCoincidencias(encontrados);
     if (encontrados.length === 1) elegir(encontrados[0]);
@@ -411,19 +420,38 @@ export default function Escaner({ sap, registros, conteo, zona, auditor, resumen
         <form
           onSubmit={(e) => {
             e.preventDefault();
-            buscar(codigo);
+            buscar(conPrefijo(codigo, ecotapa));
           }}
           className="flex gap-2"
         >
-          <input
-            ref={inputRef}
-            inputMode="numeric"
-            placeholder="Número de bulto (ej. 6009491901)"
-            aria-label="Número de bulto"
-            value={codigo}
-            onChange={(e) => setCodigo(e.target.value)}
-            className="flex-1 min-w-0 h-12 box-border px-3 rounded-xl border border-slate-600 bg-slate-950 text-white font-mono uppercase text-sm"
-          />
+          <button
+            type="button"
+            onClick={() => {
+              setEcotapa((v) => !v);
+              inputRef.current?.focus();
+            }}
+            aria-pressed={ecotapa}
+            aria-label="Modo Ecotapa"
+            className={`shrink-0 h-12 px-2.5 rounded-xl border font-extrabold text-[11px] leading-tight cursor-pointer ${
+              ecotapa ? "bg-pink-600 border-pink-500 text-white" : "bg-slate-950 border-slate-600 text-pink-300"
+            }`}
+          >
+            ECO
+            <br />
+            TAP
+          </button>
+          <div className={`flex-1 min-w-0 h-12 flex items-center rounded-xl border bg-slate-950 focus-within:ring-2 focus-within:ring-blue-500 ${ecotapa ? "border-pink-500" : "border-slate-600"}`}>
+            {ecotapa && <span className="pl-3 font-mono text-sm font-bold text-pink-300">{PREFIJO_ECO}</span>}
+            <input
+              ref={inputRef}
+              inputMode="numeric"
+              placeholder={ecotapa ? "Número (ej. 67)" : "Número de bulto (ej. 6009491901)"}
+              aria-label="Número de bulto"
+              value={codigo}
+              onChange={(e) => setCodigo(e.target.value)}
+              className={`flex-1 min-w-0 h-full box-border ${ecotapa ? "pl-0.5" : "pl-3"} pr-3 rounded-xl bg-transparent text-white font-mono uppercase text-sm outline-none`}
+            />
+          </div>
           <button type="submit" aria-label="Buscar" className="w-[52px] h-12 rounded-xl bg-blue-600 hover:bg-blue-500 flex items-center justify-center cursor-pointer">
             <Search className="w-5 h-5 text-white" />
           </button>
