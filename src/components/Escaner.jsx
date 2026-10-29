@@ -10,12 +10,18 @@ import { ETAPAS, num, hora, limpiarCodigo } from "../lib/formato";
 import { PilaPosicion, Advertencia, HojaObservacion } from "./Comunes";
 
 const ID_LECTOR = "lector-camara-wip";
-const PREFIJO_ECO = "ECOTAP";
 
-// En modo Ecotapa, "67" se busca como "ECOTAP67"; si ya trae letras se deja igual
-const conPrefijo = (texto, ecotapa) => {
+// Botones para capturar a mano lotes que empiezan con letras sin abrir el teclado normal.
+// Con el botón activo, "67" se busca como "ECOTAP67" y "779299036" como "V779299036".
+const PREFIJOS = {
+  ECO: { texto: "ECOTAP", boton: ["ECO", "TAP"], etiqueta: "Modo Ecotapa", ejemplo: "67", activo: "bg-pink-600 border-pink-500 text-white", inactivo: "text-pink-300", borde: "border-pink-500", color: "text-pink-300" },
+  ALU: { texto: "V", boton: ["ALU", "V"], etiqueta: "Modo Aluminio", ejemplo: "779299036", activo: "bg-sky-600 border-sky-500 text-white", inactivo: "text-sky-300", borde: "border-sky-500", color: "text-sky-300" },
+};
+
+// Si el número ya trae letras (por ejemplo, leído con la cámara) se deja igual
+const conPrefijo = (texto, modo) => {
   const t = String(texto ?? "").trim();
-  return ecotapa && /^\d+$/.test(t) ? PREFIJO_ECO + t : t;
+  return modo && /^\d+$/.test(t) ? PREFIJOS[modo].texto + t : t;
 };
 
 const leerLocal = (k, def) => {
@@ -86,8 +92,8 @@ export default function Escaner({ sap, registros, conteo, zona, auditor, resumen
   const [camaraActiva, setCamaraActiva] = useState(false);
   const [errorCamara, setErrorCamara] = useState("");
   const [codigo, setCodigo] = useState("");
-  // Modo Ecotapa: el teclado sigue siendo numérico y la app antepone "ECOTAP" al número
-  const [ecotapa, setEcotapa] = useState(false);
+  // Modo de prefijo (ECO o ALU): el teclado sigue siendo numérico y la app antepone las letras
+  const [modoPrefijo, setModoPrefijo] = useState(null);
   const [coincidencias, setCoincidencias] = useState(null);
   const [seleccionado, setSeleccionado] = useState(null); // fila SAP o { sobrante: true, lote }
   const [conteoInput, setConteoInput] = useState("");
@@ -119,7 +125,8 @@ export default function Escaner({ sap, registros, conteo, zona, auditor, resumen
   const buscar = (texto) => {
     const limpio = limpiarCodigo(texto);
     if (!limpio) return;
-    setCodigo(ecotapa && limpio.startsWith(PREFIJO_ECO) ? limpio.slice(PREFIJO_ECO.length) : limpio);
+    const pre = modoPrefijo ? PREFIJOS[modoPrefijo].texto : "";
+    setCodigo(pre && limpio.startsWith(pre) && /^\d+$/.test(limpio.slice(pre.length)) ? limpio.slice(pre.length) : limpio);
     const encontrados = sapRef.current.filter((s) => s.lote === limpio && s.en_sap);
     setCoincidencias(encontrados);
     if (encontrados.length === 1) elegir(encontrados[0]);
@@ -420,36 +427,43 @@ export default function Escaner({ sap, registros, conteo, zona, auditor, resumen
         <form
           onSubmit={(e) => {
             e.preventDefault();
-            buscar(conPrefijo(codigo, ecotapa));
+            buscar(conPrefijo(codigo, modoPrefijo));
           }}
           className="flex gap-2"
         >
-          <button
-            type="button"
-            onClick={() => {
-              setEcotapa((v) => !v);
-              inputRef.current?.focus();
-            }}
-            aria-pressed={ecotapa}
-            aria-label="Modo Ecotapa"
-            className={`shrink-0 h-12 px-2.5 rounded-xl border font-extrabold text-[11px] leading-tight cursor-pointer ${
-              ecotapa ? "bg-pink-600 border-pink-500 text-white" : "bg-slate-950 border-slate-600 text-pink-300"
+          {Object.entries(PREFIJOS).map(([id, p]) => (
+            <button
+              key={id}
+              type="button"
+              onClick={() => {
+                setModoPrefijo((m) => (m === id ? null : id));
+                inputRef.current?.focus();
+              }}
+              aria-pressed={modoPrefijo === id}
+              aria-label={p.etiqueta}
+              className={`shrink-0 w-11 h-12 rounded-xl border font-extrabold text-[11px] leading-tight cursor-pointer ${
+                modoPrefijo === id ? p.activo : `bg-slate-950 border-slate-600 ${p.inactivo}`
+              }`}
+            >
+              {p.boton[0]}
+              <br />
+              {p.boton[1]}
+            </button>
+          ))}
+          <div
+            className={`flex-1 min-w-0 h-12 flex items-center rounded-xl border bg-slate-950 focus-within:ring-2 focus-within:ring-blue-500 ${
+              modoPrefijo ? PREFIJOS[modoPrefijo].borde : "border-slate-600"
             }`}
           >
-            ECO
-            <br />
-            TAP
-          </button>
-          <div className={`flex-1 min-w-0 h-12 flex items-center rounded-xl border bg-slate-950 focus-within:ring-2 focus-within:ring-blue-500 ${ecotapa ? "border-pink-500" : "border-slate-600"}`}>
-            {ecotapa && <span className="pl-3 font-mono text-sm font-bold text-pink-300">{PREFIJO_ECO}</span>}
+            {modoPrefijo && <span className={`pl-3 font-mono text-sm font-bold ${PREFIJOS[modoPrefijo].color}`}>{PREFIJOS[modoPrefijo].texto}</span>}
             <input
               ref={inputRef}
               inputMode="numeric"
-              placeholder={ecotapa ? "Número (ej. 67)" : "Número de bulto (ej. 6009491901)"}
+              placeholder={modoPrefijo ? `Número (ej. ${PREFIJOS[modoPrefijo].ejemplo})` : "Número de bulto (ej. 6009491901)"}
               aria-label="Número de bulto"
               value={codigo}
               onChange={(e) => setCodigo(e.target.value)}
-              className={`flex-1 min-w-0 h-full box-border ${ecotapa ? "pl-0.5" : "pl-3"} pr-3 rounded-xl bg-transparent text-white font-mono uppercase text-sm outline-none`}
+              className={`flex-1 min-w-0 h-full box-border ${modoPrefijo ? "pl-0.5" : "pl-3"} pr-3 rounded-xl bg-transparent text-white font-mono uppercase text-sm outline-none`}
             />
           </div>
           <button type="submit" aria-label="Buscar" className="w-[52px] h-12 rounded-xl bg-blue-600 hover:bg-blue-500 flex items-center justify-center cursor-pointer">
