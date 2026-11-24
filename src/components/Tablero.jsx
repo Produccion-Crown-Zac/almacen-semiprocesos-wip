@@ -11,6 +11,7 @@ import { SelectorUbicacion, Advertencia } from "./Comunes";
 import { EstadoChip, FilaRegistro } from "./Registros";
 import Resumen from "./Resumen";
 import LayoutVista from "./LayoutVista";
+import logoProduccion from "../assets/logo-produccion.jpg";
 
 const POR_PAGINA = 200;
 
@@ -228,12 +229,19 @@ export default function Tablero({
 
       {/* Encabezado */}
       <section className="bg-slate-900 border border-slate-800 rounded-2xl p-4 flex flex-col xl:flex-row xl:items-center gap-3 justify-between">
-        <div>
-          <h1 className="m-0 text-xl md:text-2xl font-bold text-white">Inventario de semiprocesos · Layout</h1>
-          <p className="m-0 mt-1 text-xs text-slate-400">
-            Copia la tabla del MB52 en SAP y presiona <kbd className="px-1.5 py-0.5 rounded bg-slate-800 text-slate-200">Ctrl</kbd>+
-            <kbd className="px-1.5 py-0.5 rounded bg-slate-800 text-slate-200">V</kbd> aquí, o arrastra el archivo exportado.
-          </p>
+        <div className="flex items-center gap-3">
+          <img
+            src={logoProduccion}
+            alt="Producción Crowners - Misión Excelencia Crown Zacatecas"
+            className="w-12 h-12 rounded-full object-contain shrink-0 ring-1 ring-slate-700/80"
+          />
+          <div>
+            <h1 className="m-0 text-xl md:text-2xl font-bold text-white">Inventario de semiprocesos · Layout</h1>
+            <p className="m-0 mt-1 text-xs text-slate-400">
+              Copia la tabla del MB52 en SAP y presiona <kbd className="px-1.5 py-0.5 rounded bg-slate-800 text-slate-200">Ctrl</kbd>+
+              <kbd className="px-1.5 py-0.5 rounded bg-slate-800 text-slate-200">V</kbd> aquí, o arrastra el archivo exportado.
+            </p>
+          </div>
         </div>
         <div className="flex flex-wrap gap-2 items-center">
           <label className="flex items-center gap-2 h-11 px-3 rounded-xl border border-slate-600 bg-slate-950 text-sm text-white">

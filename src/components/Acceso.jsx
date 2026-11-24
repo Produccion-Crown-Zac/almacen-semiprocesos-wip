@@ -1,8 +1,9 @@
 // src/components/Acceso.jsx
 // Inicio de sesión y creación del primer administrador.
 import { useState } from "react";
-import { Lock, User, KeyRound, ShieldCheck } from "lucide-react";
+import { User, KeyRound, ShieldCheck } from "lucide-react";
 import { Auth } from "../api/entities";
+import logoProduccion from "../assets/logo-produccion.jpg";
 
 const Campo = ({ etiqueta, icono: Icono, ...props }) => (
   <label className="flex flex-col gap-1.5">
@@ -46,9 +47,11 @@ export default function Acceso({ hayUsuarios, onEntrar }) {
     <div className="min-h-screen bg-slate-950 text-slate-100 flex items-center justify-center p-4 font-sans">
       <form onSubmit={enviar} className="w-full max-w-sm bg-slate-900 border border-slate-800 rounded-3xl p-6 flex flex-col gap-4">
         <div className="flex flex-col items-center gap-2 text-center">
-          <div className="w-14 h-14 rounded-2xl bg-amber-500/15 flex items-center justify-center">
-            {primerAdmin ? <ShieldCheck className="w-7 h-7 text-amber-400" /> : <Lock className="w-7 h-7 text-amber-400" />}
-          </div>
+          <img
+            src={logoProduccion}
+            alt="Producción Crowners - Misión Excelencia Crown Zacatecas"
+            className="w-24 h-24 rounded-full object-contain ring-1 ring-slate-700/80 shadow-lg"
+          />
           <h1 className="m-0 text-xl font-extrabold text-white">Inventario de semiprocesos</h1>
           <p className="m-0 text-sm text-slate-400">
             {primerAdmin
