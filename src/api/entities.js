@@ -119,6 +119,7 @@ export const Registro = {
   cerrados: () => api("registros?cerrados=1"),
   guardar: (datos) => api("registros", { metodo: "POST", datos }),
   actualizar: (id, cambios) => api(`registros/${encodeURIComponent(id)}`, { metodo: "PATCH", datos: cambios }),
+  conciliar: (id, datos) => api(`registros/${encodeURIComponent(id)}/conciliar`, { metodo: "POST", datos }),
   eliminar: (id) => api(`registros/${encodeURIComponent(id)}`, { metodo: "DELETE" }),
 };
 

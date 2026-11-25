@@ -434,6 +434,45 @@ export async function onRequest(context) {
       return json({ registro: r, anterior: parsearRegistro(anterior) });
     }
 
+    if (ruta.startsWith("registros/") && segmentos[2] === "conciliar" && metodo === "POST") {
+      const rid = segmentos[1];
+      const r = await db.prepare("SELECT r.*, c.estado AS estado_conteo FROM registros r JOIN conteos c ON c.id = r.conteo_id WHERE r.id = ?").bind(rid).first();
+      if (!r) return error(404, "Registro no encontrado.");
+      if (r.estado_conteo !== "EN_CURSO") return error(400, "Ese conteo ya está cerrado.");
+      const b = await cuerpo();
+      const clave = String(b.clave ?? "");
+      if (!clave) return error(400, "Falta la orden SAP a asignar.");
+      const sapRow = await db.prepare("SELECT * FROM sap WHERE clave = ?").bind(clave).first();
+      if (!sapRow) return error(404, "Orden SAP no encontrada.");
+      const dup = await db.prepare("SELECT id FROM registros WHERE conteo_id = ? AND clave = ? AND id <> ?").bind(r.conteo_id, clave, rid).first();
+      if (dup) return error(409, "Esa orden SAP ya fue registrada en este conteo.");
+      const fisica = b.cantidad_fisica !== undefined ? (b.cantidad_fisica == null ? null : Number(b.cantidad_fisica)) : r.cantidad_fisica;
+      const estado = fisica === Number(sapRow.cantidad_sap) ? "OK" : "DIFERENCIA";
+      const t = ahora();
+      await db
+        .prepare(
+          `UPDATE registros SET clave = ?, lote = ?, material = ?, texto_breve = ?, etapa = ?, calibre = ?,
+             cantidad_sap = ?, cantidad_fisica = ?, estado = ?, motivo = NULL, actualizado_en = ?
+           WHERE id = ?`
+        )
+        .bind(
+          sapRow.clave,
+          sapRow.lote,
+          sapRow.material ?? "",
+          sapRow.texto_breve ?? "",
+          sapRow.etapa ?? "OTRO",
+          sapRow.calibre ?? "",
+          Number(sapRow.cantidad_sap ?? 0),
+          fisica,
+          estado,
+          t,
+          rid
+        )
+        .run();
+      await subirVersion(db);
+      return json(parsearRegistro(await db.prepare("SELECT * FROM registros WHERE id = ?").bind(rid).first()));
+    }
+
     if (ruta.startsWith("registros/") && (metodo === "PATCH" || metodo === "DELETE")) {
       const rid = segmentos[1];
       const r = await db.prepare("SELECT r.*, c.estado AS estado_conteo FROM registros r JOIN conteos c ON c.id = r.conteo_id WHERE r.id = ?").bind(rid).first();

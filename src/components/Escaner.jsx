@@ -3,10 +3,10 @@
 // escanea los bultos que hay ahí y les da check (✓) o los registra con observación (>).
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Html5Qrcode, Html5QrcodeSupportedFormats } from "html5-qrcode";
-import { Camera, CameraOff, Search, Check, ChevronRight, AlertTriangle, PackageX, Ruler, User } from "lucide-react";
+import { Camera, CameraOff, Search, Check, ChevronRight, AlertTriangle, PackageX, Ruler, User, FileQuestion } from "lucide-react";
 import { Registro, Movimiento } from "../api/entities";
 import { CAPACIDAD_POSICION, ZONAS, carrilesDeZona, textoUbicacion } from "../lib/croquis";
-import { ETAPAS, num, hora, limpiarCodigo } from "../lib/formato";
+import { ETAPAS, num, hora, limpiarCodigo, esSinPapeleta } from "../lib/formato";
 import { PilaPosicion, Advertencia, HojaObservacion } from "./Comunes";
 
 const ID_LECTOR = "lector-camara-wip";
@@ -41,13 +41,28 @@ const guardarLocal = (k, v) => {
 
 const Flecha = ({ etiqueta, onClick, children }) => (
   <button
+    type="button"
     onClick={onClick}
+    onKeyDown={(e) => {
+      if (e.key === "Enter") e.preventDefault();
+    }}
     aria-label={etiqueta}
     className="h-[52px] rounded-xl bg-blue-600 hover:bg-blue-500 active:bg-blue-700 text-white text-2xl font-extrabold cursor-pointer"
   >
     {children}
   </button>
 );
+
+const siguienteFolioSP = (registros) => {
+  let max = 0;
+  for (const r of registros) {
+    if (!esSinPapeleta(r)) continue;
+    const m = String(r.lote ?? "").match(/^SP-(\d+)$/);
+    if (m) max = Math.max(max, Number(m[1]));
+    else max = Math.max(max, 1);
+  }
+  return `SP-${max + 1}`;
+};
 
 export default function Escaner({ sap, registros, conteo, zona, auditor, resumen, onCambio }) {
   // ---------- Ubicación actual ----------
@@ -98,6 +113,7 @@ export default function Escaner({ sap, registros, conteo, zona, auditor, resumen
   const [seleccionado, setSeleccionado] = useState(null); // fila SAP o { sobrante: true, lote }
   const [conteoInput, setConteoInput] = useState("");
   const [alturaMm, setAlturaMm] = useState("");
+  const [comentarioSP, setComentarioSP] = useState("");
   const [guardando, setGuardando] = useState(false);
   const [aviso, setAviso] = useState(null);
   const [hojaObs, setHojaObs] = useState(false);
@@ -141,6 +157,52 @@ export default function Escaner({ sap, registros, conteo, zona, auditor, resumen
       if (deZona.length === 1) elegir(deZona[0]);
       else setSeleccionado(null);
     }
+  };
+
+  // Mantener foco en el campo de lote para el Handheld Scanner y evitar que Enter accione botones
+  useEffect(() => {
+    if (!camaraActiva && !hojaObs && !advertencia && !seleccionado) {
+      inputRef.current?.focus();
+    }
+  }, [camaraActiva, hojaObs, advertencia, seleccionado, zona, carril.id, posicion]);
+
+  useEffect(() => {
+    if (camaraActiva || hojaObs || advertencia) return;
+    const alTeclar = (e) => {
+      const el = e.target;
+      if (el instanceof HTMLElement && el.closest("input, textarea, select, [contenteditable]")) return;
+      if (e.key === "Enter") {
+        e.preventDefault();
+        if (codigo.trim()) buscar(conPrefijo(codigo, modoPrefijo));
+        return;
+      }
+      if (e.key.length === 1 && !e.ctrlKey && !e.metaKey && !e.altKey && /^[A-Za-z0-9-]$/.test(e.key)) {
+        e.preventDefault();
+        inputRef.current?.focus();
+        setCodigo((c) => c + e.key.toUpperCase());
+      }
+    };
+    window.addEventListener("keydown", alTeclar);
+    return () => window.removeEventListener("keydown", alTeclar);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [camaraActiva, hojaObs, advertencia, codigo, modoPrefijo]);
+
+  const iniciarSinPapeleta = () => {
+    setCoincidencias(null);
+    setCodigo("");
+    setConteoInput("");
+    setAlturaMm("");
+    setComentarioSP("");
+    setSeleccionado({
+      sinPapeleta: true,
+      sobrante: true,
+      clave: `SIN_PAPELETA|${crypto.randomUUID()}`,
+      lote: siguienteFolioSP(registros),
+      cantidad_sap: 0,
+      etapa: zona,
+      calibre: "",
+      texto_breve: "Bulto sin papeleta · pendiente asignar orden SAP",
+    });
   };
 
   // ---------- Cámara ----------
@@ -222,6 +284,7 @@ export default function Escaner({ sap, registros, conteo, zona, auditor, resumen
     setCodigo("");
     setConteoInput("");
     setAlturaMm("");
+    setComentarioSP("");
   };
 
   const terminar = (mensaje, tipo) => {
@@ -319,7 +382,7 @@ export default function Escaner({ sap, registros, conteo, zona, auditor, resumen
   const otraEtapa = seleccionado && !seleccionado.sobrante && seleccionado.etapa !== zona && seleccionado.etapa !== "OTRO";
 
   return (
-    <div className="max-w-lg mx-auto flex flex-col gap-3">
+    <div className="max-w-lg mx-auto flex flex-col gap-3 pb-36 md:pb-0">
       {/* Avance de la zona */}
       <section className="bg-slate-900 border border-slate-800 rounded-2xl p-3.5 flex flex-col gap-2.5">
         <div className="flex justify-between items-end">
@@ -350,49 +413,51 @@ export default function Escaner({ sap, registros, conteo, zona, auditor, resumen
         <span className="ml-auto text-[11px] text-slate-500 shrink-0">registra a tu nombre</span>
       </div>
 
-      {/* Carril y posición */}
-      <section className="flex flex-col gap-2">
-        <div className="grid grid-cols-[64px_64px_1fr_96px] gap-2 items-center">
-          <Flecha etiqueta="Carril anterior" onClick={() => cambiarCarril(-1)}>
-            &lt;
-          </Flecha>
-          <Flecha etiqueta="Carril siguiente" onClick={() => cambiarCarril(1)}>
-            &gt;
-          </Flecha>
-          <div className="h-[52px] rounded-xl bg-slate-900 border border-slate-800 flex items-center justify-center font-bold text-[15px]">Carril</div>
-          <select
-            aria-label="Carril"
-            value={carril.id}
-            onChange={(e) => moverA(e.target.value, 1)}
-            className="h-[52px] rounded-xl bg-slate-950 border border-slate-600 text-center font-mono font-extrabold text-lg text-white"
-          >
-            {carriles.map((c) => (
-              <option key={c.id} value={c.id}>
-                {/^\d+$/.test(c.nombre) ? c.nombre.padStart(2, "0") : c.nombre}
-              </option>
-            ))}
-          </select>
-        </div>
-        <div className="grid grid-cols-[64px_64px_1fr_96px] gap-2 items-center">
-          <Flecha etiqueta="Posición anterior" onClick={() => cambiarPosicion(-1)}>
-            &lt;
-          </Flecha>
-          <Flecha etiqueta="Posición siguiente" onClick={() => cambiarPosicion(1)}>
-            &gt;
-          </Flecha>
-          <div className="h-[52px] rounded-xl bg-slate-900 border border-slate-800 flex items-center justify-center font-bold text-[15px]">Posición</div>
-          <select
-            aria-label="Posición"
-            value={posicion}
-            onChange={(e) => moverA(carril.id, Number(e.target.value))}
-            className="h-[52px] rounded-xl bg-slate-950 border border-slate-600 text-center font-mono font-extrabold text-xl text-white"
-          >
-            {Array.from({ length: carril.posiciones }, (_, i) => (
-              <option key={i + 1} value={i + 1}>
-                {String(i + 1).padStart(2, "0")}
-              </option>
-            ))}
-          </select>
+      {/* Carril y posición (fijo abajo en móvil, arriba en escritorio) */}
+      <section className="fixed bottom-0 inset-x-0 z-30 bg-slate-950/95 backdrop-blur border-t border-slate-800 px-3 py-2.5 shadow-2xl md:static md:bg-transparent md:backdrop-blur-none md:border-0 md:p-0 md:shadow-none">
+        <div className="max-w-lg mx-auto flex flex-col gap-2">
+          <div className="grid grid-cols-[64px_64px_1fr_96px] gap-2 items-center">
+            <Flecha etiqueta="Carril anterior" onClick={() => cambiarCarril(-1)}>
+              &lt;
+            </Flecha>
+            <Flecha etiqueta="Carril siguiente" onClick={() => cambiarCarril(1)}>
+              &gt;
+            </Flecha>
+            <div className="h-[52px] rounded-xl bg-slate-900 border border-slate-800 flex items-center justify-center font-bold text-[15px]">Carril</div>
+            <select
+              aria-label="Carril"
+              value={carril.id}
+              onChange={(e) => moverA(e.target.value, 1)}
+              className="h-[52px] rounded-xl bg-slate-950 border border-slate-600 text-center font-mono font-extrabold text-lg text-white"
+            >
+              {carriles.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {/^\d+$/.test(c.nombre) ? c.nombre.padStart(2, "0") : c.nombre}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div className="grid grid-cols-[64px_64px_1fr_96px] gap-2 items-center">
+            <Flecha etiqueta="Posición anterior" onClick={() => cambiarPosicion(-1)}>
+              &lt;
+            </Flecha>
+            <Flecha etiqueta="Posición siguiente" onClick={() => cambiarPosicion(1)}>
+              &gt;
+            </Flecha>
+            <div className="h-[52px] rounded-xl bg-slate-900 border border-slate-800 flex items-center justify-center font-bold text-[15px]">Posición</div>
+            <select
+              aria-label="Posición"
+              value={posicion}
+              onChange={(e) => moverA(carril.id, Number(e.target.value))}
+              className="h-[52px] rounded-xl bg-slate-950 border border-slate-600 text-center font-mono font-extrabold text-xl text-white"
+            >
+              {Array.from({ length: carril.posiciones }, (_, i) => (
+                <option key={i + 1} value={i + 1}>
+                  {String(i + 1).padStart(2, "0")}
+                </option>
+              ))}
+            </select>
+          </div>
         </div>
       </section>
 
@@ -481,6 +546,15 @@ export default function Escaner({ sap, registros, conteo, zona, auditor, resumen
           />
           Abrir la cámara otra vez al confirmar (escaneo continuo)
         </label>
+        {!seleccionado && (
+          <button
+            type="button"
+            onClick={iniciarSinPapeleta}
+            className="h-11 rounded-xl border border-yellow-600/60 bg-yellow-500/10 hover:bg-yellow-500/20 text-yellow-200 font-bold text-sm flex items-center justify-center gap-2 cursor-pointer"
+          >
+            <FileQuestion className="w-4 h-4" /> Registrar bulto sin papeleta
+          </button>
+        )}
       </section>
 
       {aviso && (
@@ -520,13 +594,19 @@ export default function Escaner({ sap, registros, conteo, zona, auditor, resumen
       {/* Tarjeta del bulto */}
       {seleccionado && (
         <section
-          className={`bg-slate-900 border-2 rounded-[20px] p-4 flex flex-col gap-3.5 ${seleccionado.sobrante ? "border-red-500/60" : "border-emerald-500/60"}`}
+          className={`bg-slate-900 border-2 rounded-[20px] p-4 flex flex-col gap-3.5 ${
+            seleccionado.sinPapeleta ? "border-yellow-400/70" : seleccionado.sobrante ? "border-red-500/60" : "border-emerald-500/60"
+          }`}
         >
           <div className="flex justify-between gap-2 border-b border-slate-800 pb-3">
             <div className="min-w-0">
-              <div className="text-xs text-slate-400">Bulto</div>
+              <div className="text-xs text-slate-400">{seleccionado.sinPapeleta ? "Bulto sin papeleta (folio temporal)" : "Bulto"}</div>
               <div className="font-mono text-2xl font-extrabold text-white">{seleccionado.lote}</div>
-              {seleccionado.sobrante ? (
+              {seleccionado.sinPapeleta ? (
+                <div className="flex items-start gap-1.5 text-xs text-yellow-200 mt-1">
+                  <FileQuestion className="w-4 h-4 shrink-0 mt-0.5" /> Pendiente de asignar orden SAP. Ingresa una cantidad aproximada (o calcúlala por altura).
+                </div>
+              ) : seleccionado.sobrante ? (
                 <div className="flex items-start gap-1.5 text-sm text-red-300 mt-1">
                   <PackageX className="w-4 h-4 shrink-0 mt-0.5" /> No está en el reporte SAP. Revisa el número; si la tarima sí está aquí, regístrala.
                 </div>
@@ -559,6 +639,46 @@ export default function Escaner({ sap, registros, conteo, zona, auditor, resumen
             )}
           </div>
 
+          {seleccionado.sinPapeleta && (
+            <div className="flex flex-col gap-2">
+              <div className="flex flex-wrap gap-1.5 items-center">
+                <span className="text-xs font-bold text-slate-300 mr-1">Calibre:</span>
+                {[
+                  ["70", "Cal. 70"],
+                  ["75", "Cal. 75"],
+                  ["ALU", "Aluminio"],
+                  ["", "Sin especificar"],
+                ].map(([val, lbl]) => (
+                  <button
+                    key={lbl}
+                    type="button"
+                    onClick={() => {
+                      setSeleccionado((s) => ({ ...s, calibre: val }));
+                      if (alturaMm) {
+                        const v = Number(alturaMm);
+                        const cal = val === "75" ? 75 : 70;
+                        if (v > 0) setConteoInput(String(Math.round(v / espesores[cal])));
+                      }
+                    }}
+                    className={`px-2.5 py-1.5 rounded-lg text-xs font-bold border cursor-pointer ${
+                      seleccionado.calibre === val ? "bg-yellow-400 text-slate-950 border-yellow-400" : "bg-slate-950 text-slate-300 border-slate-700"
+                    }`}
+                  >
+                    {lbl}
+                  </button>
+                ))}
+              </div>
+              <input
+                type="text"
+                value={comentarioSP}
+                onChange={(e) => setComentarioSP(e.target.value)}
+                placeholder="Referencia opcional (ej. color, diseño, ubicación)"
+                aria-label="Referencia del bulto sin papeleta"
+                className="h-10 px-3 rounded-xl border border-slate-700 bg-slate-950 text-sm text-white outline-none focus:border-yellow-400"
+              />
+            </div>
+          )}
+
           {otraEtapa && (
             <div className="flex gap-2 items-start text-xs bg-amber-500/10 border border-amber-500/30 text-amber-200 rounded-xl p-3">
               <AlertTriangle className="w-4 h-4 shrink-0" />
@@ -588,10 +708,13 @@ export default function Escaner({ sap, registros, conteo, zona, auditor, resumen
           </div>
 
           <label className="flex flex-col gap-1.5">
-            <span className="text-xs font-bold text-slate-300">Piezas físicas en la tarima</span>
+            <span className="text-xs font-bold text-slate-300">
+              {seleccionado.sinPapeleta ? "Piezas aproximadas en la tarima" : "Piezas físicas en la tarima"}
+            </span>
             <input
               type="number"
               inputMode="numeric"
+              placeholder={seleccionado.sinPapeleta ? "Ej. 1200" : ""}
               value={conteoInput}
               onChange={(e) => {
                 setConteoInput(e.target.value);
@@ -640,28 +763,41 @@ export default function Escaner({ sap, registros, conteo, zona, auditor, resumen
           )}
 
 
-          <div className="grid grid-cols-2 gap-3">
+          {seleccionado.sinPapeleta ? (
             <button
-              aria-label="Check: confirmar lote"
+              type="button"
               disabled={guardando || conteoInput === "" || !auditor.trim()}
-              onClick={() => registrar({ destino: "POSICION" })}
-              className="h-24 rounded-[18px] bg-emerald-500 hover:bg-emerald-400 disabled:opacity-40 flex items-center justify-center cursor-pointer"
+              onClick={() => registrar({ destino: "POSICION", motivo: "Sin papeleta", comentario: comentarioSP.trim() })}
+              className="h-16 rounded-[18px] bg-yellow-400 hover:bg-yellow-300 disabled:opacity-40 text-slate-950 font-extrabold text-base flex items-center justify-center gap-2 cursor-pointer"
             >
-              <Check className="w-12 h-12 text-white" strokeWidth={3} />
+              <Check className="w-6 h-6" strokeWidth={3} /> Guardar bulto sin papeleta ({seleccionado.lote})
             </button>
-            <button
-              aria-label="Registrar con observación"
-              disabled={guardando || !auditor.trim()}
-              onClick={() => setHojaObs(true)}
-              className="h-24 rounded-[18px] bg-amber-500 hover:bg-amber-400 disabled:opacity-40 flex items-center justify-center cursor-pointer"
-            >
-              <ChevronRight className="w-12 h-12 text-white" strokeWidth={3} />
-            </button>
-          </div>
-          <div className="grid grid-cols-2 gap-3 -mt-1.5 text-xs text-center text-slate-400">
-            <span>{diferencia === 0 ? "Check" : "Check con diferencia"}</span>
-            <span>Con observación</span>
-          </div>
+          ) : (
+            <>
+              <div className="grid grid-cols-2 gap-3">
+                <button
+                  aria-label="Check: confirmar lote"
+                  disabled={guardando || conteoInput === "" || !auditor.trim()}
+                  onClick={() => registrar({ destino: "POSICION" })}
+                  className="h-24 rounded-[18px] bg-emerald-500 hover:bg-emerald-400 disabled:opacity-40 flex items-center justify-center cursor-pointer"
+                >
+                  <Check className="w-12 h-12 text-white" strokeWidth={3} />
+                </button>
+                <button
+                  aria-label="Registrar con observación"
+                  disabled={guardando || !auditor.trim()}
+                  onClick={() => setHojaObs(true)}
+                  className="h-24 rounded-[18px] bg-amber-500 hover:bg-amber-400 disabled:opacity-40 flex items-center justify-center cursor-pointer"
+                >
+                  <ChevronRight className="w-12 h-12 text-white" strokeWidth={3} />
+                </button>
+              </div>
+              <div className="grid grid-cols-2 gap-3 -mt-1.5 text-xs text-center text-slate-400">
+                <span>{diferencia === 0 ? "Check" : "Check con diferencia"}</span>
+                <span>Con observación</span>
+              </div>
+            </>
+          )}
           <button onClick={limpiar} className="self-center h-11 px-7 rounded-lg bg-red-600 hover:bg-red-500 text-white font-bold text-sm cursor-pointer">
             Cancelar
           </button>
@@ -748,4 +884,3 @@ function RecientesEscaner({ registros }) {
     </section>
   );
 }
-

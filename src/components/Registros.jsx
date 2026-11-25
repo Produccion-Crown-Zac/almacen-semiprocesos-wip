@@ -1,8 +1,8 @@
 // src/components/Registros.jsx
 // Fila de un bulto registrado (con sus acciones) y la etiqueta de estado.
-import { MoveRight, CheckCheck } from "lucide-react";
+import { MoveRight, CheckCheck, Link2 } from "lucide-react";
 import { textoUbicacion } from "../lib/croquis";
-import { num, hora } from "../lib/formato";
+import { num, hora, esSinPapeleta } from "../lib/formato";
 
 export function EstadoChip({ enSap, r }) {
   const base = "px-2 py-0.5 rounded-full text-[11px] font-bold whitespace-nowrap";
@@ -13,13 +13,15 @@ export function EstadoChip({ enSap, r }) {
       <span className={`${base} bg-slate-800 text-slate-500`}>Ya no en SAP</span>
     );
   }
+  if (esSinPapeleta(r)) return <span className={`${base} bg-yellow-400 text-slate-950`}>● Sin papeleta (pendiente SAP)</span>;
   if (r.motivo) return <span className={`${base} bg-yellow-400 text-slate-950`}>● {r.motivo}</span>;
   if (r.estado === "SOBRANTE") return <span className={`${base} bg-red-500/20 text-red-300 border border-red-500/30`}>✚ No está en SAP</span>;
   if (r.estado === "DIFERENCIA") return <span className={`${base} bg-amber-500/20 text-amber-300 border border-amber-500/30`}>⚠ Diferencia</span>;
   return <span className={`${base} bg-emerald-500/20 text-emerald-300 border border-emerald-500/30`}>✓ Verificado</span>;
 }
 
-export function FilaRegistro({ r, nivel, soloLectura, onMover, onResolver, onSeguimiento, onEliminar, onUbicar }) {
+export function FilaRegistro({ r, nivel, soloLectura, onMover, onResolver, onSeguimiento, onConciliar, onEliminar, onUbicar }) {
+  const sinPapeleta = esSinPapeleta(r);
   const dif = r.estado === "SOBRANTE" || r.cantidad_fisica == null ? null : Number(r.cantidad_fisica) - Number(r.cantidad_sap);
   return (
     <div className={`rounded-xl border p-3 flex flex-col gap-2 ${r.motivo ? "bg-yellow-400/[.07] border-yellow-400/40" : "bg-slate-900 border-slate-800"}`}>
@@ -29,9 +31,11 @@ export function FilaRegistro({ r, nivel, soloLectura, onMover, onResolver, onSeg
             {r.lote}
             {nivel && <span className="ml-2 font-sans text-[11px] font-semibold text-slate-400">Nivel {nivel}</span>}
           </div>
-          <div className="text-xs text-slate-300 truncate">{r.estado === "SOBRANTE" ? "No está en el reporte SAP" : r.texto_breve}</div>
+          <div className="text-xs text-slate-300 truncate">
+            {sinPapeleta ? "Bulto sin papeleta · pendiente asignar orden SAP" : r.estado === "SOBRANTE" ? "No está en el reporte SAP" : r.texto_breve}
+          </div>
           <div className="text-[11px] text-slate-500">
-            {textoUbicacion(r.zona, r.carril, r.posicion)} · {num(r.cantidad_fisica)} pzas
+            {textoUbicacion(r.zona, r.carril, r.posicion)} · {r.cantidad_fisica == null ? "Sin cantidad" : `${num(r.cantidad_fisica)} pzas`}
             {dif ? ` (${dif > 0 ? "+" : ""}${num(dif)} vs SAP)` : ""} · {r.usuario} · {hora(r.actualizado_en)}
           </div>
         </div>
@@ -46,10 +50,18 @@ export function FilaRegistro({ r, nivel, soloLectura, onMover, onResolver, onSeg
         )}
         {!soloLectura && (
           <>
+            {sinPapeleta && onConciliar && (
+              <button
+                onClick={onConciliar}
+                className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-amber-500 hover:bg-amber-400 text-slate-950 text-xs font-extrabold cursor-pointer"
+              >
+                <Link2 className="w-3.5 h-3.5" /> Asignar orden SAP
+              </button>
+            )}
             <button onClick={onMover} className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold cursor-pointer">
               <MoveRight className="w-3.5 h-3.5" /> {r.posicion ? "Mover" : "Mover a posición"}
             </button>
-            {r.motivo && r.posicion && (
+            {r.motivo && r.posicion && !sinPapeleta && (
               <button
                 onClick={onResolver}
                 className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold cursor-pointer"

@@ -286,6 +286,7 @@ export default function LayoutVista({
                   onMover={() => acciones.mover(r)}
                   onResolver={() => acciones.resolver(r)}
                   onSeguimiento={() => acciones.seguimiento(r)}
+                  onConciliar={() => acciones.conciliar?.(r)}
                   onEliminar={() => acciones.eliminar(r)}
                 />
               ))}

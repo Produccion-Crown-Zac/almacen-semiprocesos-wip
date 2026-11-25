@@ -3,7 +3,7 @@
 // El filtro "Tipo de lámina" aplica a todos; la bitácora se abre con su ícono.
 import { useEffect, useMemo, useRef, useState } from "react";
 import * as XLSX from "xlsx";
-import { FileUp, ClipboardPaste, Download, RotateCcw, Search, History, Trash2, X, BarChart3, Map as MapIcon, AlertCircle, List } from "lucide-react";
+import { FileUp, ClipboardPaste, Download, RotateCcw, Search, History, Trash2, X, BarChart3, Map as MapIcon, AlertCircle, List, Link2 } from "lucide-react";
 import { Registro, Movimiento } from "../api/entities";
 import { CAPACIDAD_POSICION, MOTIVOS, ZONAS, ORDEN_ZONAS, buscarCarril, carrilesDeZona, textoUbicacion } from "../lib/croquis";
 import { ETAPAS, num, hora, fecha, mapaPosiciones, claveUbicacion } from "../lib/formato";
@@ -84,6 +84,7 @@ export default function Tablero({
   const [arrastrando, setArrastrando] = useState(false);
   const [buscado, setBuscado] = useState(null); // clave del bulto buscado en el layout
   const [moviendo, setMoviendo] = useState(null);
+  const [conciliando, setConciliando] = useState(null);
   const [advertencia, setAdvertencia] = useState(null);
 
   const irA = (v) => {
@@ -155,6 +156,7 @@ export default function Tablero({
       await Movimiento.create({ conteo_id: r.conteo_id, lote: r.lote, accion: "ENVIADO A SEGUIMIENTO", detalle: `Desde ${textoUbicacion(r.zona, r.carril, r.posicion)}`, usuario: auditor || null });
       onCambio();
     },
+    conciliar: (r) => setConciliando(r),
     eliminar: async (r) => {
       if (!window.confirm(`¿Eliminar el registro del bulto ${r.lote} de este conteo? Volverá a quedar pendiente.`)) return;
       await Registro.eliminar(r.id);
@@ -467,6 +469,151 @@ export default function Tablero({
           onRegistrar={() => ejecutarMovimiento(advertencia.registro, advertencia.destino, true)}
         />
       )}
+      {conciliando && (
+        <ModalConciliar
+          registro={conciliando}
+          sap={sap}
+          registros={registros}
+          auditor={auditor}
+          onCerrar={() => setConciliando(null)}
+          onConciliado={() => {
+            setConciliando(null);
+            onCambio();
+          }}
+        />
+      )}
+    </div>
+  );
+}
+
+// ======================================================================
+function ModalConciliar({ registro, sap, registros, auditor, onCerrar, onConciliado }) {
+  const [busqueda, setBusqueda] = useState("");
+  const [fisica, setFisica] = useState(registro.cantidad_fisica == null ? "" : String(registro.cantidad_fisica));
+  const [guardando, setGuardando] = useState(false);
+  const [error, setError] = useState("");
+
+  const pendientes = useMemo(() => {
+    const contadas = new Set(registros.map((r) => r.clave));
+    const q = busqueda.trim().toUpperCase();
+    return sap
+      .filter((s) => s.en_sap && !contadas.has(s.clave))
+      .filter((s) => !q || `${s.lote} ${s.material} ${s.texto_breve}`.toUpperCase().includes(q))
+      .sort((a, b) => {
+        const aMisma = a.etapa === registro.etapa ? 1 : 0;
+        const bMisma = b.etapa === registro.etapa ? 1 : 0;
+        if (bMisma !== aMisma) return bMisma - aMisma;
+        return String(a.lote).localeCompare(String(b.lote));
+      });
+  }, [sap, registros, busqueda, registro.etapa]);
+
+  const asignar = async (s) => {
+    setError("");
+    setGuardando(true);
+    try {
+      const cantidad_fisica = fisica === "" ? null : Number(fisica);
+      await Registro.conciliar(registro.id, { clave: s.clave, cantidad_fisica });
+      await Movimiento.create({
+        conteo_id: registro.conteo_id,
+        lote: s.lote,
+        accion: "CONCILIADO SIN PAPELETA",
+        detalle: `${registro.lote} → ${s.lote} (${textoUbicacion(registro.zona, registro.carril, registro.posicion)})`,
+        usuario: auditor || null,
+      });
+      onConciliado();
+    } catch (e) {
+      setError(e.message);
+    } finally {
+      setGuardando(false);
+    }
+  };
+
+  return (
+    <div
+      className="fixed inset-0 z-50 bg-black/75 flex items-center justify-center p-4"
+      role="dialog"
+      aria-modal="true"
+      aria-label="Asignar orden SAP"
+      onClick={(e) => e.target === e.currentTarget && onCerrar()}
+    >
+      <section className="w-full max-w-xl max-h-[88vh] bg-slate-900 border border-slate-700 rounded-2xl p-5 flex flex-col gap-3">
+        <div className="flex items-start justify-between gap-2">
+          <div>
+            <div className="text-xs font-bold text-amber-300 flex items-center gap-1.5">
+              <Link2 className="w-4 h-4" /> ASIGNAR ORDEN SAP A BULTO SIN PAPELETA
+            </div>
+            <div className="font-mono text-xl font-extrabold text-white mt-0.5">{registro.lote}</div>
+            <div className="text-xs text-slate-400">
+              {textoUbicacion(registro.zona, registro.carril, registro.posicion)} · {registro.calibre ? `Cal. ${registro.calibre}` : "Sin calibre"}
+              {registro.comentario ? ` · “${registro.comentario}”` : ""}
+            </div>
+          </div>
+          <button onClick={onCerrar} aria-label="Cerrar" className="p-2 text-slate-400 hover:text-white cursor-pointer">
+            <X className="w-5 h-5" />
+          </button>
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-[1fr_150px] gap-2">
+          <div className="flex items-center gap-2 bg-slate-950 border border-slate-700 rounded-xl px-3">
+            <Search className="w-4 h-4 text-slate-500 shrink-0" />
+            <input
+              value={busqueda}
+              onChange={(e) => setBusqueda(e.target.value)}
+              placeholder="Buscar orden SAP pendiente (lote, material, texto)…"
+              aria-label="Buscar orden SAP pendiente"
+              className="flex-1 bg-transparent py-2.5 text-sm text-white outline-none"
+            />
+          </div>
+          <label className="flex items-center gap-2 bg-slate-950 border border-slate-700 rounded-xl px-3">
+            <span className="text-xs text-slate-400 shrink-0">Pzas:</span>
+            <input
+              type="number"
+              inputMode="numeric"
+              value={fisica}
+              onChange={(e) => setFisica(e.target.value)}
+              aria-label="Piezas físicas"
+              className="w-full bg-transparent py-2 text-sm font-bold text-white outline-none"
+            />
+          </label>
+        </div>
+
+        {error && <div className="rounded-xl bg-red-500/10 border border-red-500/30 text-red-200 text-xs px-3 py-2">{error}</div>}
+
+        <div className="text-xs text-slate-400">
+          Órdenes SAP pendientes sin check en este conteo: <strong className="text-white">{num(pendientes.length)}</strong>
+        </div>
+
+        <div className="flex-1 overflow-y-auto flex flex-col gap-1.5 pr-1">
+          {pendientes.length === 0 ? (
+            <p className="m-0 text-sm text-slate-500 py-6 text-center">No hay órdenes SAP pendientes que coincidan con la búsqueda.</p>
+          ) : (
+            pendientes.slice(0, 60).map((s) => (
+              <button
+                key={s.clave}
+                disabled={guardando}
+                onClick={() => asignar(s)}
+                className="w-full text-left p-3 rounded-xl bg-slate-950 border border-slate-800 hover:border-amber-400 disabled:opacity-50 flex items-center justify-between gap-3 cursor-pointer"
+              >
+                <div className="min-w-0">
+                  <div className="flex items-center gap-2">
+                    <span className="font-mono text-sm font-bold text-white">{s.lote}</span>
+                    <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${ETAPAS[s.etapa]?.color ?? ETAPAS.OTRO.color}`}>
+                      {ETAPAS[s.etapa]?.nombre ?? "Otro"}
+                    </span>
+                    {s.calibre && <span className="text-[11px] text-slate-400">Cal. {s.calibre}</span>}
+                  </div>
+                  <div className="text-xs text-slate-300 truncate mt-0.5">{s.texto_breve}</div>
+                  <div className="text-[11px] text-slate-500">Material {s.material}</div>
+                </div>
+                <div className="text-right shrink-0">
+                  <div className="text-sm font-bold text-white">{num(s.cantidad_sap)} pzas</div>
+                  <div className="text-[11px] text-amber-300 font-semibold">Asignar →</div>
+                </div>
+              </button>
+            ))
+          )}
+        </div>
+      </section>
     </div>
   );
 }
@@ -510,6 +657,7 @@ function Seguimiento({ registros, resumen, zonaFiltro, soloLectura, acciones, on
               onMover={() => acciones.mover(r)}
               onResolver={() => acciones.resolver(r)}
               onSeguimiento={() => acciones.seguimiento(r)}
+              onConciliar={() => acciones.conciliar(r)}
               onEliminar={() => acciones.eliminar(r)}
               onUbicar={() => onUbicar(r)}
             />

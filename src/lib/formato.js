@@ -26,6 +26,8 @@ export const limpiarCodigo = (texto) =>
 
 export const claveUbicacion = (zona, carril, posicion) => `${zona}|${carril}|${posicion}`;
 
+export const esSinPapeleta = (r) => String(r?.clave ?? "").startsWith("SIN_PAPELETA|");
+
 // Lotes por posición del croquis (ordenados de abajo hacia arriba)
 export const mapaPosiciones = (registros) => {
   const m = new Map();
