@@ -3,11 +3,12 @@
 // escanea los bultos que hay ahí y les da check (✓) o los registra con observación (>).
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Html5Qrcode, Html5QrcodeSupportedFormats } from "html5-qrcode";
-import { Camera, CameraOff, Search, Check, ChevronRight, AlertTriangle, PackageX, Ruler, User, FileQuestion } from "lucide-react";
+import { Camera, CameraOff, Search, Check, ChevronRight, AlertTriangle, PackageX, Ruler, User, FileQuestion, ScanText } from "lucide-react";
 import { Registro, Movimiento } from "../api/entities";
 import { CAPACIDAD_POSICION, ZONAS, carrilesDeZona, textoUbicacion } from "../lib/croquis";
 import { ETAPAS, num, hora, limpiarCodigo, esSinPapeleta } from "../lib/formato";
 import { PilaPosicion, Advertencia, HojaObservacion } from "./Comunes";
+import LectorOCR from "./LectorOCR";
 
 const ID_LECTOR = "lector-camara-wip";
 
@@ -105,6 +106,7 @@ export default function Escaner({ sap, registros, conteo, zona, auditor, resumen
 
   // ---------- Búsqueda / escaneo ----------
   const [camaraActiva, setCamaraActiva] = useState(false);
+  const [ocrActivo, setOcrActivo] = useState(false);
   const [errorCamara, setErrorCamara] = useState("");
   const [codigo, setCodigo] = useState("");
   // Modo de prefijo (ECO o ALU): el teclado sigue siendo numérico y la app antepone las letras
@@ -161,13 +163,13 @@ export default function Escaner({ sap, registros, conteo, zona, auditor, resumen
 
   // Mantener foco en el campo de lote para el Handheld Scanner y evitar que Enter accione botones
   useEffect(() => {
-    if (!camaraActiva && !hojaObs && !advertencia && !seleccionado) {
+    if (!camaraActiva && !ocrActivo && !hojaObs && !advertencia && !seleccionado) {
       inputRef.current?.focus();
     }
-  }, [camaraActiva, hojaObs, advertencia, seleccionado, zona, carril.id, posicion]);
+  }, [camaraActiva, ocrActivo, hojaObs, advertencia, seleccionado, zona, carril.id, posicion]);
 
   useEffect(() => {
-    if (camaraActiva || hojaObs || advertencia) return;
+    if (camaraActiva || ocrActivo || hojaObs || advertencia) return;
     const alTeclar = (e) => {
       const el = e.target;
       if (el instanceof HTMLElement && el.closest("input, textarea, select, [contenteditable]")) return;
@@ -185,7 +187,7 @@ export default function Escaner({ sap, registros, conteo, zona, auditor, resumen
     window.addEventListener("keydown", alTeclar);
     return () => window.removeEventListener("keydown", alTeclar);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [camaraActiva, hojaObs, advertencia, codigo, modoPrefijo]);
+  }, [camaraActiva, ocrActivo, hojaObs, advertencia, codigo, modoPrefijo]);
 
   const iniciarSinPapeleta = () => {
     setCoincidencias(null);
@@ -475,19 +477,48 @@ export default function Escaner({ sap, registros, conteo, zona, auditor, resumen
 
       {/* Escaneo */}
       <section className="bg-slate-900 border border-slate-800 rounded-2xl p-3 flex flex-col gap-2.5">
-        <button
-          onClick={() => {
-            setErrorCamara("");
-            setCamaraActiva((v) => !v);
-          }}
-          className={`h-[54px] rounded-xl flex items-center justify-center gap-2 font-extrabold text-base cursor-pointer ${
-            camaraActiva ? "bg-slate-700 text-white" : "bg-emerald-500 hover:bg-emerald-400 text-slate-950"
-          }`}
-        >
-          {camaraActiva ? <CameraOff className="w-5 h-5" /> : <Camera className="w-5 h-5" />}
-          {camaraActiva ? "Cerrar cámara" : "Escanear bulto"}
-        </button>
+        <div className="grid grid-cols-2 gap-2">
+          <button
+            type="button"
+            onClick={() => {
+              setErrorCamara("");
+              setOcrActivo(false);
+              setCamaraActiva((v) => !v);
+            }}
+            className={`h-[54px] rounded-xl flex items-center justify-center gap-2 font-extrabold text-sm cursor-pointer ${
+              camaraActiva ? "bg-slate-700 text-white" : "bg-emerald-500 hover:bg-emerald-400 text-slate-950"
+            }`}
+          >
+            {camaraActiva ? <CameraOff className="w-5 h-5" /> : <Camera className="w-5 h-5" />}
+            {camaraActiva ? "Cerrar cámara" : "Código barras"}
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              setErrorCamara("");
+              setCamaraActiva(false);
+              setOcrActivo((v) => !v);
+            }}
+            className={`h-[54px] rounded-xl flex items-center justify-center gap-2 font-extrabold text-sm cursor-pointer ${
+              ocrActivo ? "bg-slate-700 text-white" : "bg-cyan-500 hover:bg-cyan-400 text-slate-950"
+            }`}
+          >
+            {ocrActivo ? <CameraOff className="w-5 h-5" /> : <ScanText className="w-5 h-5" />}
+            {ocrActivo ? "Cerrar OCR" : "Leer número"}
+          </button>
+        </div>
         {camaraActiva && <div id={ID_LECTOR} className="overflow-hidden rounded-xl bg-black min-h-[220px]" />}
+        {ocrActivo && (
+          <LectorOCR
+            sap={sap}
+            zona={zona}
+            onDetectado={(texto) => {
+              setOcrActivo(false);
+              buscar(texto);
+            }}
+            onCerrar={() => setOcrActivo(false)}
+          />
+        )}
         {errorCamara && <p className="text-xs text-red-300 m-0">{errorCamara}</p>}
         <form
           onSubmit={(e) => {
