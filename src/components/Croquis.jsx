@@ -35,7 +35,7 @@ function Croquis({ mapa, zonaFiltro = "TODAS", seleccion, resaltado, onSeleccion
   }, [marca]);
 
   return (
-    <div ref={cajaRef} className="overflow-x-auto rounded-xl bg-[#0d1528]">
+    <div ref={cajaRef} className="overflow-x-auto rounded-xl bg-[#050E21] border border-slate-500/25">
       <div className="relative" style={{ width: px(COLUMNAS + 1) + 16, height: py(FILAS) + 8 }}>
         {FONDOS.map((f, i) => (
           <div
@@ -93,14 +93,14 @@ function Croquis({ mapa, zonaFiltro = "TODAS", seleccion, resaltado, onSeleccion
                 onClick={() => onSeleccionar?.(k)}
                 aria-label={`${ZONAS[c.zona].nombre} carril ${c.nombre} posición ${pos}: ${lotes.length} lotes`}
                 title={`${ZONAS[c.zona].nombre} · Carril ${c.nombre} · Posición ${pos}${lotes.length ? `\n${lotes.map((l) => l.lote).join("\n")}` : "\nVacía"}`}
-                className="absolute box-border p-0 flex flex-col-reverse gap-px overflow-hidden rounded-[2px] cursor-pointer bg-[#0b1120]"
+                className="mc-cell absolute box-border p-0 flex flex-col-reverse gap-px overflow-hidden rounded-[2px] cursor-pointer bg-[#07142C]"
                 style={{
                   left: px(celda.col) + 1,
                   top: py(celda.row) + 1,
                   width: CW - 2,
                   height: RH - 2,
-                  border: lotes.length ? "none" : "1px solid rgba(148,163,184,.28)",
-                  outline: sel ? "2px solid #f59e0b" : exceso ? "2px solid #ef4444" : conObs ? "2px solid #facc15" : "none",
+                  border: lotes.length ? "none" : "1px solid rgba(148,163,184,.32)",
+                  outline: sel ? "2px solid #00A8FF" : exceso ? "2px solid #ef4444" : conObs ? "2px solid #facc15" : "none",
                   outlineOffset: sel ? 1 : 0,
                   opacity: atenuar(c.zona) ? 0.25 : 1,
                   zIndex: sel ? 2 : 1,

@@ -34,14 +34,14 @@ const Chip = ({ activo, onClick, children, amarillo = false, estilo }) => (
   <button
     onClick={onClick}
     style={estilo}
-    className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition cursor-pointer ${
+    className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors cursor-pointer ${
       activo
         ? amarillo
-          ? "bg-yellow-400 text-slate-950"
-          : "bg-amber-500 text-slate-950"
+          ? "bg-yellow-400 text-[#040B1A]"
+          : "bg-[#00A8FF] text-[#040B1A] shadow-[0_0_12px_rgba(0,168,255,0.35)]"
         : amarillo
-        ? "border border-yellow-900 text-yellow-200 hover:bg-yellow-400/10"
-        : "bg-slate-800 text-slate-300 hover:bg-slate-700"
+        ? "border border-yellow-500/40 text-yellow-200 hover:bg-yellow-400/10"
+        : "bg-[#07142C] border border-slate-500/25 text-slate-200 hover:border-[#38BDF8]/50"
     }`}
   >
     {children}
@@ -230,28 +230,28 @@ export default function Tablero({
       )}
 
       {/* Encabezado */}
-      <section className="bg-slate-900 border border-slate-800 rounded-2xl p-4 flex flex-col xl:flex-row xl:items-center gap-3 justify-between">
+      <section className="mc-glass mc-enter rounded-2xl p-4 flex flex-col xl:flex-row xl:items-center gap-3 justify-between">
         <div className="flex items-center gap-3">
           <img
             src={logoProduccion}
             alt="Producción Crowners - Misión Excelencia Crown Zacatecas"
-            className="w-12 h-12 rounded-full object-contain shrink-0 ring-1 ring-slate-700/80"
+            className="w-12 h-12 rounded-full object-contain shrink-0 ring-2 ring-[#38BDF8]/45 shadow-[0_0_16px_rgba(0,168,255,0.22)]"
           />
           <div>
-            <h1 className="m-0 text-xl md:text-2xl font-bold text-white">Inventario de semiprocesos · Layout</h1>
-            <p className="m-0 mt-1 text-xs text-slate-400">
-              Copia la tabla del MB52 en SAP y presiona <kbd className="px-1.5 py-0.5 rounded bg-slate-800 text-slate-200">Ctrl</kbd>+
-              <kbd className="px-1.5 py-0.5 rounded bg-slate-800 text-slate-200">V</kbd> aquí, o arrastra el archivo exportado.
+            <h1 className="m-0 text-xl md:text-2xl font-bold text-white tracking-tight">Inventario de semiprocesos · Layout</h1>
+            <p className="m-0 mt-1 text-xs text-slate-300">
+              Copia la tabla del MB52 en SAP y presiona <kbd className="px-1.5 py-0.5 rounded bg-[#040B1A] border border-slate-600/50 text-[#38BDF8]">Ctrl</kbd>+
+              <kbd className="px-1.5 py-0.5 rounded bg-[#040B1A] border border-slate-600/50 text-[#38BDF8]">V</kbd> aquí, o arrastra el archivo exportado.
             </p>
           </div>
         </div>
         <div className="flex flex-wrap gap-2 items-center">
-          <label className="flex items-center gap-2 h-11 px-3 rounded-xl border border-slate-600 bg-slate-950 text-sm text-white">
-            <span className={`w-2 h-2 rounded-full ${soloLectura ? "bg-slate-400" : "bg-emerald-500"}`} />
+          <label className="flex items-center gap-2 h-11 px-3 rounded-xl border border-slate-500/40 bg-[#040B1A] text-sm text-white">
+            <span className={`w-2 h-2 rounded-full ${soloLectura ? "bg-slate-400" : "bg-[#00A8FF]"}`} />
             <span className="sr-only">Conteo</span>
             <select value={conteoVisto?.id ?? ""} onChange={(e) => onVerConteo(e.target.value)} className="bg-transparent text-sm font-semibold text-white outline-none cursor-pointer">
               {conteos.map((c) => (
-                <option key={c.id} value={c.id} className="bg-slate-900">
+                <option key={c.id} value={c.id} className="bg-[#07142C]">
                   {c.estado === "EN_CURSO" ? `Conteo en curso · ${fecha(c.creado_en)}` : `Conteo del ${fecha(c.creado_en)} (cerrado)`}
                 </option>
               ))}
@@ -268,31 +268,31 @@ export default function Tablero({
               e.target.value = "";
             }}
           />
-          <button onClick={onPegarBoton} disabled={sincronizando} className="flex items-center gap-2 h-11 px-3.5 rounded-xl bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white font-bold text-xs cursor-pointer">
+          <button onClick={onPegarBoton} disabled={sincronizando} className="flex items-center gap-2 h-11 px-3.5 rounded-xl bg-[#00A8FF] hover:bg-[#38BDF8] disabled:opacity-50 text-[#040B1A] font-extrabold text-xs transition-colors cursor-pointer">
             <ClipboardPaste className="w-4 h-4" /> Pegar desde SAP
           </button>
           <button
             onClick={() => fileRef.current?.click()}
             disabled={sincronizando}
-            className="flex items-center gap-2 h-11 px-3.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 disabled:opacity-50 text-slate-950 font-bold text-xs cursor-pointer"
+            className="flex items-center gap-2 h-11 px-3.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 disabled:opacity-50 text-[#040B1A] font-extrabold text-xs transition-colors cursor-pointer"
           >
             <FileUp className="w-4 h-4" /> Cargar archivo SAP
           </button>
-          <button onClick={exportar} className="flex items-center gap-2 h-11 px-3.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold text-xs cursor-pointer">
+          <button onClick={exportar} className="flex items-center gap-2 h-11 px-3.5 rounded-xl bg-[#07142C] border border-slate-500/35 hover:border-[#38BDF8]/60 text-slate-200 font-bold text-xs transition-colors cursor-pointer">
             <Download className="w-4 h-4" /> Exportar
           </button>
-          <button onClick={onNuevoConteo} className="flex items-center gap-2 h-11 px-3.5 rounded-xl border border-slate-600 hover:bg-slate-800 text-slate-200 font-bold text-xs cursor-pointer">
+          <button onClick={onNuevoConteo} className="flex items-center gap-2 h-11 px-3.5 rounded-xl border border-slate-500/40 hover:border-[#38BDF8]/60 hover:bg-white/5 text-slate-200 font-bold text-xs transition-colors cursor-pointer">
             <RotateCcw className="w-4 h-4" /> Nuevo conteo
           </button>
           <button
             onClick={() => setBitacoraAbierta(true)}
             aria-label="Abrir bitácora"
             title="Bitácora"
-            className="relative w-11 h-11 rounded-xl border border-slate-600 hover:bg-slate-800 flex items-center justify-center cursor-pointer"
+            className="relative w-11 h-11 rounded-xl border border-slate-500/40 hover:border-[#38BDF8]/60 hover:bg-white/5 flex items-center justify-center transition-colors cursor-pointer"
           >
-            <History className="w-5 h-5 text-amber-400" />
+            <History className="w-5 h-5 text-[#38BDF8]" />
             {movimientos.length > 0 && (
-              <span className="absolute -top-1.5 -right-1.5 min-w-5 h-5 px-1 rounded-full bg-amber-500 text-slate-950 text-[10px] font-extrabold flex items-center justify-center">
+              <span className="absolute -top-1.5 -right-1.5 min-w-5 h-5 px-1 rounded-full bg-[#00A8FF] text-[#040B1A] text-[10px] font-extrabold flex items-center justify-center">
                 {movimientos.length > 99 ? "99+" : movimientos.length}
               </span>
             )}
@@ -318,10 +318,10 @@ export default function Tablero({
           }`}
         >
           {resultadoSync.error ? (
-            <>✕ {resultadoSync.error}</>
+            <>Error: {resultadoSync.error}</>
           ) : (
             <>
-              <strong>✓ {resultadoSync.origen}:</strong> {num(resultadoSync.total)} bultos leídos · {resultadoSync.creados} nuevos · {resultadoSync.cambiosCantidad} con
+              <strong>{resultadoSync.origen}:</strong> {num(resultadoSync.total)} bultos leídos · {resultadoSync.creados} nuevos · {resultadoSync.cambiosCantidad} con
               cantidad distinta · {resultadoSync.yaNoEnSap} ya no vienen en SAP · {resultadoSync.subtotalesIgnorados} filas de subtotal ignoradas
             </>
           )}
@@ -329,7 +329,7 @@ export default function Tablero({
       )}
 
       {/* Subapartados + filtro de tipo de lámina */}
-      <section className="flex flex-col lg:flex-row lg:items-center justify-between gap-3 bg-slate-900 border border-slate-800 rounded-2xl p-2">
+      <section className="flex flex-col lg:flex-row lg:items-center justify-between gap-3 mc-glass rounded-2xl p-2">
         <div role="tablist" aria-label="Subapartados del tablero" className="grid grid-cols-2 sm:grid-cols-4 gap-1">
           {SUBAPARTADOS.map(([v, t, Icono]) => (
             <button
@@ -337,22 +337,22 @@ export default function Tablero({
               role="tab"
               aria-selected={sub === v}
               onClick={() => irA(v)}
-              className={`h-11 px-4 rounded-xl flex items-center justify-center gap-2 text-sm font-bold cursor-pointer ${
-                sub === v ? "bg-slate-100 text-slate-950" : "text-slate-300 hover:bg-slate-800"
+              className={`h-11 px-4 rounded-xl flex items-center justify-center gap-2 text-sm font-bold transition-colors cursor-pointer ${
+                sub === v ? "bg-[#00A8FF] text-[#040B1A] shadow-[0_0_16px_rgba(0,168,255,0.35)]" : "text-slate-200 hover:bg-white/10"
               }`}
             >
               <Icono className="w-4 h-4" />
               {t}
               {v === "SEGUIMIENTO" && conObservacion.length > 0 && (
-                <span className={`px-1.5 rounded-full text-[10px] font-extrabold ${sub === v ? "bg-yellow-400 text-slate-950" : "bg-yellow-400/20 text-yellow-200"}`}>
+                <span className={`px-1.5 rounded-full text-[10px] font-extrabold ${sub === v ? "bg-[#040B1A] text-[#38BDF8]" : "bg-yellow-400/20 text-yellow-200"}`}>
                   {conObservacion.length}
                 </span>
               )}
             </button>
           ))}
         </div>
-        <div className="flex flex-wrap items-center gap-2 px-2">
-          <span className="text-xs font-bold uppercase tracking-[.06em] text-slate-400">Tipo de lámina</span>
+        <div className="flex flex-wrap lg:flex-nowrap items-center gap-1.5 px-2 shrink-0">
+          <span className="text-xs font-bold uppercase tracking-[.06em] text-slate-400 whitespace-nowrap mr-1">Tipo de lámina</span>
           <Chip activo={zonaFiltro === "TODAS"} onClick={() => cambiarZona("TODAS")}>
             Todas
           </Chip>
@@ -400,11 +400,11 @@ export default function Tablero({
 
       {/* Bitácora desplegable */}
       {bitacoraAbierta && (
-        <div className="fixed inset-0 z-50 flex justify-end bg-black/60" onClick={(e) => e.target === e.currentTarget && setBitacoraAbierta(false)}>
-          <aside role="dialog" aria-modal="true" aria-label="Bitácora" className="w-full max-w-md h-full bg-slate-900 border-l border-slate-700 flex flex-col">
-            <div className="flex items-center justify-between p-4 border-b border-slate-800">
+        <div className="fixed inset-0 z-50 flex justify-end bg-black/65" onClick={(e) => e.target === e.currentTarget && setBitacoraAbierta(false)}>
+          <aside role="dialog" aria-modal="true" aria-label="Bitácora" className="w-full max-w-md h-full mc-glass-strong border-l border-slate-500/30 flex flex-col">
+            <div className="flex items-center justify-between p-4 border-b border-slate-500/25">
               <h2 className="m-0 font-bold text-white flex items-center gap-2">
-                <History className="w-5 h-5 text-amber-400" /> Bitácora
+                <History className="w-5 h-5 text-[#38BDF8]" /> Bitácora
                 <span className="text-xs font-normal text-slate-400">({movimientos.length})</span>
               </h2>
               <button onClick={() => setBitacoraAbierta(false)} aria-label="Cerrar bitácora" className="p-2 text-slate-400 hover:text-white cursor-pointer">
@@ -702,8 +702,8 @@ function Bultos({ sap, registros, zonaFiltro, resumen, soloLectura, onQuitarFuer
   }, [sap, registros, porClave, busqueda, fEstado, fCalibre, zonaFiltro]);
 
   return (
-    <section className="bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden">
-      <div className="p-4 border-b border-slate-800 flex flex-col gap-3">
+    <section className="mc-surface rounded-2xl overflow-hidden">
+      <div className="p-4 border-b border-slate-500/25 flex flex-col gap-3">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <h2 className="m-0 font-bold text-white">
             Bultos <span className="text-slate-400 font-normal text-sm">({num(filas.length)})</span>

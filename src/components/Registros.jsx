@@ -1,30 +1,54 @@
 // src/components/Registros.jsx
 // Fila de un bulto registrado (con sus acciones) y la etiqueta de estado.
-import { MoveRight, CheckCheck, Link2 } from "lucide-react";
+import { MoveRight, CheckCheck, Link2, Check, AlertTriangle, PlusCircle, CircleDot } from "lucide-react";
 import { textoUbicacion } from "../lib/croquis";
 import { num, hora, esSinPapeleta } from "../lib/formato";
 
 export function EstadoChip({ enSap, r }) {
-  const base = "px-2 py-0.5 rounded-full text-[11px] font-bold whitespace-nowrap";
+  const base = "inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-bold whitespace-nowrap";
   if (!r) {
     return enSap ? (
-      <span className={`${base} bg-slate-800 text-slate-400`}>Pendiente</span>
+      <span className={`${base} bg-[#0B1D3D] text-slate-300 border border-slate-600/40`}>Pendiente</span>
     ) : (
-      <span className={`${base} bg-slate-800 text-slate-500`}>Ya no en SAP</span>
+      <span className={`${base} bg-[#0B1D3D] text-slate-400 border border-slate-700/40`}>Ya no en SAP</span>
     );
   }
-  if (esSinPapeleta(r)) return <span className={`${base} bg-yellow-400 text-slate-950`}>● Sin papeleta (pendiente SAP)</span>;
-  if (r.motivo) return <span className={`${base} bg-yellow-400 text-slate-950`}>● {r.motivo}</span>;
-  if (r.estado === "SOBRANTE") return <span className={`${base} bg-red-500/20 text-red-300 border border-red-500/30`}>✚ No está en SAP</span>;
-  if (r.estado === "DIFERENCIA") return <span className={`${base} bg-amber-500/20 text-amber-300 border border-amber-500/30`}>⚠ Diferencia</span>;
-  return <span className={`${base} bg-emerald-500/20 text-emerald-300 border border-emerald-500/30`}>✓ Verificado</span>;
+  if (esSinPapeleta(r))
+    return (
+      <span className={`${base} bg-yellow-400 text-[#040B1A]`}>
+        <CircleDot className="w-3 h-3" /> Sin papeleta (pendiente SAP)
+      </span>
+    );
+  if (r.motivo)
+    return (
+      <span className={`${base} bg-yellow-400 text-[#040B1A]`}>
+        <CircleDot className="w-3 h-3" /> {r.motivo}
+      </span>
+    );
+  if (r.estado === "SOBRANTE")
+    return (
+      <span className={`${base} bg-red-500/20 text-red-200 border border-red-400/40`}>
+        <PlusCircle className="w-3 h-3" /> No está en SAP
+      </span>
+    );
+  if (r.estado === "DIFERENCIA")
+    return (
+      <span className={`${base} bg-amber-500/20 text-amber-200 border border-amber-400/40`}>
+        <AlertTriangle className="w-3 h-3" /> Diferencia
+      </span>
+    );
+  return (
+    <span className={`${base} bg-emerald-500/20 text-emerald-200 border border-emerald-400/40`}>
+      <Check className="w-3 h-3" /> Verificado
+    </span>
+  );
 }
 
 export function FilaRegistro({ r, nivel, soloLectura, onMover, onResolver, onSeguimiento, onConciliar, onEliminar, onUbicar }) {
   const sinPapeleta = esSinPapeleta(r);
   const dif = r.estado === "SOBRANTE" || r.cantidad_fisica == null ? null : Number(r.cantidad_fisica) - Number(r.cantidad_sap);
   return (
-    <div className={`rounded-xl border p-3 flex flex-col gap-2 ${r.motivo ? "bg-yellow-400/[.07] border-yellow-400/40" : "bg-slate-900 border-slate-800"}`}>
+    <div className={`rounded-xl border p-3 flex flex-col gap-2 ${r.motivo ? "bg-[#191E2A] border-yellow-400/50" : "mc-surface"}`}>
       <div className="flex justify-between gap-2">
         <div className="min-w-0">
           <div className="font-mono text-sm font-bold text-white">

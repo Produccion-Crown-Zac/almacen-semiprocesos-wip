@@ -7,9 +7,9 @@ import logoProduccion from "../assets/logo-produccion.jpg";
 
 const Campo = ({ etiqueta, icono: Icono, ...props }) => (
   <label className="flex flex-col gap-1.5">
-    <span className="text-xs font-bold text-slate-300">{etiqueta}</span>
-    <span className="flex items-center gap-2.5 h-12 px-3.5 rounded-xl bg-slate-950 border border-slate-600 focus-within:border-amber-400">
-      <Icono className="w-4 h-4 text-slate-400 shrink-0" />
+    <span className="text-xs font-bold tracking-wide text-slate-300">{etiqueta}</span>
+    <span className="flex items-center gap-2.5 h-12 px-3.5 rounded-xl bg-[#040B1A] border border-slate-500/40 focus-within:border-[#38BDF8] focus-within:ring-2 focus-within:ring-[#00A8FF]/25 transition-colors">
+      <Icono className="w-4 h-4 text-[#38BDF8] shrink-0" />
       <input {...props} className="flex-1 min-w-0 bg-transparent text-[15px] text-white outline-none placeholder:text-slate-500" />
     </span>
   </label>
@@ -44,16 +44,17 @@ export default function Acceso({ hayUsuarios, onEntrar }) {
   };
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 flex items-center justify-center p-4 font-sans">
-      <form onSubmit={enviar} className="w-full max-w-sm bg-slate-900 border border-slate-800 rounded-3xl p-6 flex flex-col gap-4">
-        <div className="flex flex-col items-center gap-2 text-center">
+    <div className="min-h-screen mc-bg text-slate-100 flex items-center justify-center p-4 font-sans">
+      <form onSubmit={enviar} className="w-full max-w-sm mc-glass mc-enter rounded-3xl p-6 flex flex-col gap-4">
+        <div className="flex flex-col items-center gap-2.5 text-center">
           <img
             src={logoProduccion}
             alt="Producción Crowners - Misión Excelencia Crown Zacatecas"
-            className="w-24 h-24 rounded-full object-contain ring-1 ring-slate-700/80 shadow-lg"
+            className="w-24 h-24 rounded-full object-contain ring-2 ring-[#38BDF8]/50 shadow-[0_0_24px_rgba(0,168,255,0.28)]"
           />
-          <h1 className="m-0 text-xl font-extrabold text-white">Inventario de semiprocesos</h1>
-          <p className="m-0 text-sm text-slate-400">
+          <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-[#38BDF8]">Misión Excelencia · Planta Tapas</span>
+          <h1 className="m-0 text-xl font-extrabold text-white tracking-tight">Inventario de semiprocesos</h1>
+          <p className="m-0 text-sm text-slate-300">
             {primerAdmin
               ? "Primera vez: crea la cuenta del administrador. Después podrá dar de alta al resto del personal."
               : "Inicia sesión con tu usuario y contraseña."}
@@ -80,15 +81,18 @@ export default function Acceso({ hayUsuarios, onEntrar }) {
         )}
 
         {error && (
-          <p role="alert" className="m-0 rounded-xl bg-red-500/10 border border-red-500/30 text-red-200 text-sm px-3 py-2.5">
+          <p role="alert" className="m-0 rounded-xl bg-red-500/15 border border-red-400/40 text-red-200 text-sm px-3 py-2.5">
             {error}
           </p>
         )}
 
-        <button disabled={enviando} className="h-12 rounded-xl bg-amber-500 hover:bg-amber-400 disabled:opacity-50 text-slate-950 font-extrabold cursor-pointer">
+        <button
+          disabled={enviando}
+          className="h-12 rounded-xl bg-[#00A8FF] hover:bg-[#38BDF8] disabled:opacity-50 text-[#040B1A] font-extrabold tracking-wide shadow-[0_8px_20px_-6px_rgba(0,168,255,0.6)] transition-colors cursor-pointer"
+        >
           {enviando ? "Verificando…" : primerAdmin ? "Crear administrador y entrar" : "Entrar"}
         </button>
-        {!primerAdmin && <p className="m-0 text-center text-xs text-slate-500">¿Olvidaste tu contraseña? Pide a un administrador que la restablezca.</p>}
+        {!primerAdmin && <p className="m-0 text-center text-xs text-slate-400">¿Olvidaste tu contraseña? Pide a un administrador que la restablezca.</p>}
       </form>
     </div>
   );

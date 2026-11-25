@@ -1,1 +1,130 @@
 ﻿@import "tailwindcss";
+
+:root {
+  --mc-space-deep: #040b1a;
+  --mc-space-mid: #091936;
+  --mc-surface-solid: #07142c;
+  --mc-cyan: #00a8ff;
+  --mc-cyan-light: #38bdf8;
+  --mc-silver: #cbd5e1;
+  --mc-silver-muted: #94a3b8;
+}
+
+html,
+body {
+  background-color: var(--mc-space-deep);
+  color: #f1f5f9;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Fondo espacial Mission Control con resplandor radial ambiental sutil */
+.mc-bg {
+  background-color: var(--mc-space-deep);
+  background-image:
+    radial-gradient(ellipse 75% 42% at 50% -6%, rgba(0, 168, 255, 0.16), transparent 68%),
+    radial-gradient(circle at 88% 92%, rgba(56, 189, 248, 0.08), transparent 48%),
+    linear-gradient(165deg, #040b1a 0%, #07142b 52%, #091936 100%);
+  background-attachment: fixed;
+}
+
+/* Glassmorphism seguro: SOLO contenedores de nivel superior, nav, paneles y KPIs */
+.mc-glass {
+  background: rgba(10, 25, 54, 0.78);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(148, 163, 184, 0.22);
+  border-top-color: rgba(255, 255, 255, 0.16);
+  border-left-color: rgba(255, 255, 255, 0.14);
+  box-shadow: 0 12px 32px -12px rgba(2, 8, 23, 0.78);
+}
+
+.mc-glass-strong {
+  background: rgba(7, 20, 44, 0.92);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(148, 163, 184, 0.24);
+  border-top-color: rgba(255, 255, 255, 0.18);
+  box-shadow: 0 16px 40px -12px rgba(2, 8, 23, 0.85);
+}
+
+/* Fallback sólido obligatorio para dispositivos de planta sin backdrop-filter */
+@supports not (backdrop-filter: blur(12px)) {
+  .mc-glass,
+  .mc-glass-strong {
+    background: #091834;
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+  }
+}
+
+/* Superficie sólida de alto contraste (WCAG AA+) para tablas, mapa, lotes y calibres */
+.mc-surface {
+  background-color: #07142c;
+  border: 1px solid rgba(148, 163, 184, 0.22);
+}
+
+/* Microinteracciones GPU-accelerated (transform, opacity, border-color) */
+@keyframes mc-fade-up {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.mc-enter {
+  animation: mc-fade-up 260ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.mc-stagger-1 {
+  animation-delay: 50ms;
+}
+.mc-stagger-2 {
+  animation-delay: 100ms;
+}
+.mc-stagger-3 {
+  animation-delay: 150ms;
+}
+.mc-stagger-4 {
+  animation-delay: 200ms;
+}
+
+/* Hover sutil en tarjetas de resumen y métricas */
+.mc-card-hover {
+  transition: transform 180ms ease, border-color 180ms ease, box-shadow 180ms ease;
+}
+.mc-card-hover:hover {
+  transform: translateY(-1px) scale(1.01);
+  border-color: rgba(56, 189, 248, 0.45);
+  box-shadow: 0 14px 32px -12px rgba(0, 168, 255, 0.22);
+}
+
+/* Celdas 2D ortogonales del mapa de almacén */
+.mc-cell {
+  transition: transform 150ms ease, border-color 150ms ease, box-shadow 150ms ease, opacity 180ms ease;
+}
+.mc-cell:hover {
+  transform: scale(1.22);
+  border-color: #38bdf8 !important;
+  box-shadow: 0 0 8px rgba(0, 168, 255, 0.75);
+  z-index: 4 !important;
+}
+
+/* Respeto estricto a prefers-reduced-motion */
+@media (prefers-reduced-motion: reduce) {
+  .mc-enter,
+  .mc-stagger-1,
+  .mc-stagger-2,
+  .mc-stagger-3,
+  .mc-stagger-4,
+  .mc-card-hover,
+  .mc-cell,
+  .animate-ping {
+    animation: none !important;
+    transition: none !important;
+    transform: none !important;
+  }
+}

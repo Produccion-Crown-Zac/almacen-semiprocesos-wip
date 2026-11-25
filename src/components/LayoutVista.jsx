@@ -83,10 +83,10 @@ export default function LayoutVista({
   return (
     <div className="flex flex-col gap-4">
       {/* Buscador de bulto */}
-      <section className="bg-slate-900 border border-slate-800 rounded-2xl p-4 flex flex-col gap-3">
+      <section className="mc-glass rounded-2xl p-4 flex flex-col gap-3">
         <div className="relative">
-          <label className="flex items-center gap-2 bg-slate-950 border border-cyan-700/60 rounded-xl px-3 focus-within:border-cyan-400">
-            <Search className="w-5 h-5 text-cyan-300 shrink-0" />
+          <label className="flex items-center gap-2 bg-[#040B1A] border border-[#38BDF8]/50 rounded-xl px-3 focus-within:border-[#00A8FF] focus-within:ring-2 focus-within:ring-[#00A8FF]/25 transition-colors">
+            <Search className="w-5 h-5 text-[#38BDF8] shrink-0" />
             <span className="sr-only">Buscar bulto</span>
             <input
               value={q}
@@ -202,9 +202,9 @@ export default function LayoutVista({
                   </p>
                 )}
                 {ficha.reg.motivo && (
-                  <p className="m-0 text-sm text-yellow-200">
-                    ● {ficha.reg.motivo}
-                    {ficha.reg.comentario ? `: “${ficha.reg.comentario}”` : ""}
+                  <p className="m-0 text-sm text-yellow-200 font-semibold">
+                    Observación: {ficha.reg.motivo}
+                    {ficha.reg.comentario ? ` — “${ficha.reg.comentario}”` : ""}
                   </p>
                 )}
                 {!ficha.reg.posicion && (
@@ -236,8 +236,8 @@ export default function LayoutVista({
         )}
       </section>
 
-      {/* Mapa */}
-      <section className="bg-slate-900 border border-slate-800 rounded-2xl p-4 flex flex-col gap-3">
+      {/* Mapa (superficie sólida de alto contraste, 2D ortogonal) */}
+      <section className="mc-surface rounded-2xl p-4 flex flex-col gap-3">
         <div className="flex flex-wrap justify-between items-center gap-3">
           <h2 className="m-0 text-lg font-bold text-white">Layout del almacén</h2>
           <Leyenda />

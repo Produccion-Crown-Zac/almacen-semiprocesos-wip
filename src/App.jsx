@@ -23,15 +23,15 @@ export default function App() {
     return alPerderSesion(() => setEstado((s) => ({ ...s, usuario: null })));
   }, [revisar]);
 
-  if (estado.cargando) return <div className="min-h-screen bg-slate-950 flex items-center justify-center text-slate-400 font-sans">Cargando…</div>;
+  if (estado.cargando) return <div className="min-h-screen mc-bg flex items-center justify-center text-slate-300 font-sans">Cargando…</div>;
 
   if (estado.error && !estado.usuario)
     return (
-      <div className="min-h-screen bg-slate-950 flex items-center justify-center p-4 font-sans">
-        <div className="max-w-md rounded-2xl bg-red-500/10 border border-red-500/30 text-red-200 p-5 text-sm flex flex-col gap-3">
+      <div className="min-h-screen mc-bg flex items-center justify-center p-4 font-sans">
+        <div className="max-w-md rounded-2xl mc-glass border border-red-500/40 text-red-200 p-5 text-sm flex flex-col gap-3">
           <strong className="text-red-100">No se pudo conectar con el servidor.</strong>
           <span>{estado.error}</span>
-          <button onClick={revisar} className="self-start px-4 py-2 rounded-lg bg-red-500/20 text-red-100 font-bold cursor-pointer">
+          <button onClick={revisar} className="self-start px-4 py-2 rounded-lg bg-red-500/20 hover:bg-red-500/30 border border-red-400/30 text-red-100 font-bold cursor-pointer transition-colors">
             Reintentar
           </button>
         </div>

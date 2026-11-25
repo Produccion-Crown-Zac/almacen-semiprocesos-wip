@@ -248,23 +248,27 @@ export default function Inventario({ usuario, onCerrarSesion }) {
   };
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 p-3 md:p-6 font-sans">
-      <nav className="max-w-[1720px] mx-auto mb-3 flex flex-wrap items-center justify-between gap-2">
+    <div className="min-h-screen mc-bg text-slate-100 p-3 md:p-6 font-sans">
+      <nav className="max-w-[1720px] mx-auto mb-4 flex flex-wrap items-center justify-between gap-2">
         <div
-          className={`grid ${vista === "ESCANER" ? "grid-cols-3 sm:min-w-[460px]" : esAdmin ? "grid-cols-3 sm:min-w-[440px]" : "grid-cols-2 sm:min-w-[300px]"} gap-1.5 bg-slate-900 border border-slate-800 rounded-2xl p-1.5 w-full sm:w-auto`}
+          className={`grid ${vista === "ESCANER" ? "grid-cols-3 sm:min-w-[460px]" : esAdmin ? "grid-cols-3 sm:min-w-[440px]" : "grid-cols-2 sm:min-w-[300px]"} gap-1.5 mc-glass rounded-2xl p-1.5 w-full sm:w-auto`}
         >
           <button
             onClick={() => cambiarVista("TABLERO")}
-            className={`h-11 flex items-center justify-center gap-2 px-3 rounded-xl text-[13px] font-bold cursor-pointer ${
-              vista === "TABLERO" ? "bg-amber-500 text-slate-950" : "text-slate-300 hover:bg-slate-800"
+            className={`h-11 flex items-center justify-center gap-2 px-3 rounded-xl text-[13px] font-bold transition-colors cursor-pointer ${
+              vista === "TABLERO"
+                ? "bg-[#00A8FF] text-[#040B1A] shadow-[0_0_16px_rgba(0,168,255,0.4)]"
+                : "text-slate-300 hover:bg-white/10"
             }`}
           >
             <Monitor className="w-4 h-4" /> Tablero
           </button>
           <button
             onClick={() => cambiarVista("ESCANER")}
-            className={`h-11 flex items-center justify-center gap-2 px-3 rounded-xl text-[13px] font-bold cursor-pointer ${
-              vista === "ESCANER" ? "bg-emerald-500 text-slate-950" : "text-slate-300 hover:bg-slate-800"
+            className={`h-11 flex items-center justify-center gap-2 px-3 rounded-xl text-[13px] font-bold transition-colors cursor-pointer ${
+              vista === "ESCANER"
+                ? "bg-[#38BDF8] text-[#040B1A] shadow-[0_0_16px_rgba(56,189,248,0.4)]"
+                : "text-slate-300 hover:bg-white/10"
             }`}
           >
             <Smartphone className="w-4 h-4" /> Escáner
@@ -272,8 +276,8 @@ export default function Inventario({ usuario, onCerrarSesion }) {
           {vista !== "ESCANER" && esAdmin && (
             <button
               onClick={() => cambiarVista("USUARIOS")}
-              className={`h-11 flex items-center justify-center gap-2 px-3 rounded-xl text-[13px] font-bold cursor-pointer ${
-                vista === "USUARIOS" ? "bg-slate-100 text-slate-950" : "text-slate-300 hover:bg-slate-800"
+              className={`h-11 flex items-center justify-center gap-2 px-3 rounded-xl text-[13px] font-bold transition-colors cursor-pointer ${
+                vista === "USUARIOS" ? "bg-[#CBD5E1] text-[#040B1A]" : "text-slate-300 hover:bg-white/10"
               }`}
             >
               <Users className="w-4 h-4" /> Usuarios
@@ -288,11 +292,11 @@ export default function Inventario({ usuario, onCerrarSesion }) {
             style={
               colorZona
                 ? { background: `${colorZona.color}26`, border: `1px solid ${colorZona.color}`, color: colorZona.texto }
-                : { background: "#020617", border: "1px solid #475569", color: "#e2e8f0" }
+                : { background: "#040B1A", border: "1px solid #475569", color: "#e2e8f0" }
             }
           >
             {ORDEN_ZONAS.map((z) => (
-              <option key={z} value={z} className="bg-slate-900 text-white">
+              <option key={z} value={z} className="bg-[#07142C] text-white">
                 {ZONAS[z].nombre}
               </option>
             ))}
@@ -303,26 +307,26 @@ export default function Inventario({ usuario, onCerrarSesion }) {
           <button
             onClick={() => setMenuAbierto(!menuAbierto)}
             aria-expanded={menuAbierto}
-            className="flex items-center gap-2 h-11 px-3 rounded-xl bg-slate-900 border border-slate-800 hover:bg-slate-800 cursor-pointer"
+            className="flex items-center gap-2 h-11 px-3 rounded-xl mc-glass hover:border-[#38BDF8]/50 transition-colors cursor-pointer"
           >
-            <UserCircle2 className="w-5 h-5 text-slate-300" />
+            <UserCircle2 className="w-5 h-5 text-[#38BDF8]" />
             <span className="text-left leading-tight">
               <span className="block text-[13px] font-bold text-white">{usuario.nombre}</span>
-              <span className="block text-[11px] text-slate-400">{esAdmin ? "Administrador" : "Usuario"}</span>
+              <span className="block text-[11px] text-slate-300">{esAdmin ? "Administrador" : "Usuario"}</span>
             </span>
           </button>
           {menuAbierto && (
-            <div className="absolute right-0 z-40 mt-1 w-56 rounded-xl bg-slate-900 border border-slate-700 shadow-2xl p-1">
+            <div className="absolute right-0 z-40 mt-1.5 w-56 rounded-xl mc-glass-strong p-1.5">
               <button
                 onClick={() => {
                   setMenuAbierto(false);
                   setCambiarPass(true);
                 }}
-                className="w-full flex items-center gap-2 px-3 py-2.5 rounded-lg text-sm text-slate-200 hover:bg-slate-800 cursor-pointer"
+                className="w-full flex items-center gap-2 px-3 py-2.5 rounded-lg text-sm text-slate-200 hover:bg-white/10 transition-colors cursor-pointer"
               >
-                <KeyRound className="w-4 h-4" /> Cambiar mi contraseña
+                <KeyRound className="w-4 h-4 text-[#38BDF8]" /> Cambiar mi contraseña
               </button>
-              <button onClick={onCerrarSesion} className="w-full flex items-center gap-2 px-3 py-2.5 rounded-lg text-sm text-red-300 hover:bg-red-500/10 cursor-pointer">
+              <button onClick={onCerrarSesion} className="w-full flex items-center gap-2 px-3 py-2.5 rounded-lg text-sm text-red-300 hover:bg-red-500/15 transition-colors cursor-pointer">
                 <LogOut className="w-4 h-4" /> Cerrar sesión
               </button>
             </div>

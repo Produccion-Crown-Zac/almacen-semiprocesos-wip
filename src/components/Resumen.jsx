@@ -11,7 +11,7 @@ const VERDE = "#22c55e";
 const ROJO = "#ef4444";
 
 const Tarjeta = ({ children, className = "" }) => (
-  <div className={`bg-slate-900 border border-slate-800 rounded-2xl p-4 ${className}`}>{children}</div>
+  <div className={`mc-glass mc-card-hover rounded-2xl p-4 ${className}`}>{children}</div>
 );
 
 const Estado = ({ valor, meta }) =>
@@ -126,8 +126,8 @@ export default function Resumen({ registros, registrosTodos, resumen, zonaFiltro
     <div className="flex flex-col gap-4">
       {/* Indicadores principales */}
       <section className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-3">
-        <Tarjeta className="flex flex-col gap-2 border-slate-700">
-          <span className="text-xs font-bold tracking-[.06em] uppercase text-slate-300">Exactitud de inventario</span>
+        <Tarjeta className="flex flex-col gap-2 mc-enter mc-stagger-1 border-[#38BDF8]/30">
+          <span className="text-xs font-bold tracking-[.08em] uppercase text-[#38BDF8]">Exactitud de inventario</span>
           <span className="text-4xl font-black text-white">{pct1(m.exactitud)}</span>
           <BarraMeta valor={m.exactitud} meta={meta} />
           <Estado valor={m.exactitud} meta={meta} />
@@ -154,11 +154,11 @@ export default function Resumen({ registros, registrosTodos, resumen, zonaFiltro
                   step="0.5"
                   value={metaInput}
                   onChange={(e) => setMetaInput(e.target.value)}
-                  className="w-16 px-2 py-1 rounded-md bg-slate-950 border border-slate-600 text-white"
+                  className="w-16 px-2 py-1 rounded-md bg-[#040B1A] border border-slate-500/50 text-white"
                 />
                 %
               </label>
-              <button className="px-2 py-1 rounded-md bg-amber-500 text-slate-950 font-bold cursor-pointer">Guardar</button>
+              <button className="px-2 py-1 rounded-md bg-[#00A8FF] text-[#040B1A] font-bold cursor-pointer">Guardar</button>
               <button type="button" onClick={() => setEditandoMeta(false)} className="text-slate-400 cursor-pointer">
                 Cancelar
               </button>
@@ -171,37 +171,37 @@ export default function Resumen({ registros, registrosTodos, resumen, zonaFiltro
                   setMetaInput(String(meta));
                   setEditandoMeta(true);
                 }}
-                className="self-start text-xs text-slate-400 underline hover:text-white cursor-pointer"
+                className="self-start text-xs text-slate-300 underline hover:text-[#38BDF8] cursor-pointer"
               >
                 Cambiar meta ({meta}%)
               </button>
             )
           )}
         </Tarjeta>
-        <Tarjeta className="flex flex-col gap-2">
-          <span className="text-xs font-bold tracking-[.06em] uppercase text-slate-300">Desviación</span>
+        <Tarjeta className="flex flex-col gap-2 mc-enter mc-stagger-2">
+          <span className="text-xs font-bold tracking-[.08em] uppercase text-[#CBD5E1]">Desviación</span>
           <span className="text-4xl font-black text-white">{pct1(m.desviacion)}</span>
-          <span className="text-sm text-slate-300">
+          <span className="text-sm text-slate-200">
             {num(m.diferenciaAbs)} piezas de diferencia en {num(m.lotesConDiferencia)} lotes
           </span>
-          <span className="text-xs text-slate-500">Lo que le falta a la exactitud para llegar al 100%.</span>
+          <span className="text-xs text-slate-400">Lo que le falta a la exactitud para llegar al 100%.</span>
         </Tarjeta>
-        <Tarjeta className="flex flex-col gap-2">
-          <span className="text-xs font-bold tracking-[.06em] uppercase text-slate-300">Piezas contadas</span>
+        <Tarjeta className="flex flex-col gap-2 mc-enter mc-stagger-3">
+          <span className="text-xs font-bold tracking-[.08em] uppercase text-[#CBD5E1]">Piezas contadas</span>
           <span className="text-3xl font-black text-white">{num(m.piezasFisicas)}</span>
-          <span className="text-sm text-slate-300">contra {num(m.piezasSap)} según SAP en los mismos lotes</span>
+          <span className="text-sm text-slate-200">contra {num(m.piezasSap)} según SAP en los mismos lotes</span>
           <span className="text-xs">
-            <span className="text-red-300">−{num(m.faltantes)} faltantes</span> · <span className="text-sky-300">+{num(m.sobrantes)} sobrantes</span>
+            <span className="text-red-300">−{num(m.faltantes)} faltantes</span> · <span className="text-[#38BDF8]">+{num(m.sobrantes)} sobrantes</span>
           </span>
         </Tarjeta>
-        <Tarjeta className="flex flex-col gap-2">
-          <span className="text-xs font-bold tracking-[.06em] uppercase text-slate-300">Avance del conteo</span>
+        <Tarjeta className="flex flex-col gap-2 mc-enter mc-stagger-4">
+          <span className="text-xs font-bold tracking-[.08em] uppercase text-[#CBD5E1]">Avance del conteo</span>
           <span className="text-3xl font-black text-white">{general.avancePiezas}%</span>
-          <span className="text-sm text-slate-300">
+          <span className="text-sm text-slate-200">
             de las piezas · {num(general.verificados)} de {num(general.total)} lotes ({general.avance}%)
           </span>
-          <div className="h-2 rounded-full bg-slate-800 overflow-hidden">
-            <div className="h-full rounded-full bg-emerald-400" style={{ width: `${general.avancePiezas}%` }} />
+          <div className="h-2 rounded-full bg-[#040B1A] border border-slate-700/60 overflow-hidden">
+            <div className="h-full rounded-full bg-[#00A8FF]" style={{ width: `${general.avancePiezas}%` }} />
           </div>
         </Tarjeta>
       </section>
@@ -225,14 +225,16 @@ export default function Resumen({ registros, registrosTodos, resumen, zonaFiltro
               La línea blanca marca la meta de {meta}%.
             </p>
           </div>
-          <div role="tablist" aria-label="Agrupar por" className="flex rounded-xl bg-slate-950 border border-slate-700 p-1">
+          <div role="tablist" aria-label="Agrupar por" className="flex rounded-xl bg-[#040B1A] border border-slate-600/50 p-1">
             {AGRUPACIONES.map(([v, t]) => (
               <button
                 key={v}
                 role="tab"
                 aria-selected={por === v}
                 onClick={() => cambiarPor(v)}
-                className={`px-3.5 py-1.5 rounded-lg text-xs font-bold cursor-pointer ${por === v ? "bg-amber-500 text-slate-950" : "text-slate-300 hover:bg-slate-800"}`}
+                className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition-colors cursor-pointer ${
+                  por === v ? "bg-[#00A8FF] text-[#040B1A]" : "text-slate-300 hover:bg-white/10"
+                }`}
               >
                 {t}
               </button>

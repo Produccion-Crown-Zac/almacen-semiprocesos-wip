@@ -360,12 +360,12 @@ export default function Escaner({ sap, registros, conteo, zona, auditor, resumen
       }
       terminar(
         opciones.motivo
-          ? `● ${seleccionado.lote} registrado con observación (${opciones.motivo})`
+          ? `${seleccionado.lote} registrado con observación (${opciones.motivo})`
           : estado === "OK"
-          ? `✓ ${seleccionado.lote} verificado en ${destinoTxt}${movido}`
+          ? `${seleccionado.lote} verificado en ${destinoTxt}${movido}`
           : estado === "SOBRANTE"
-          ? `✚ ${seleccionado.lote} registrado como no está en SAP`
-          : `⚠ ${seleccionado.lote}: diferencia registrada`,
+          ? `${seleccionado.lote} registrado como no está en SAP`
+          : `${seleccionado.lote}: diferencia registrada`,
         opciones.motivo || estado !== "OK" ? "warn" : "ok"
       );
     } catch (e) {
@@ -386,7 +386,7 @@ export default function Escaner({ sap, registros, conteo, zona, auditor, resumen
   return (
     <div className="max-w-lg mx-auto flex flex-col gap-3 pb-36 md:pb-0">
       {/* Avance de la zona */}
-      <section className="bg-slate-900 border border-slate-800 rounded-2xl p-3.5 flex flex-col gap-2.5">
+      <section className="mc-glass mc-enter rounded-2xl p-3.5 flex flex-col gap-2.5">
         <div className="flex justify-between items-end">
           <div>
             <div className="text-[11px] font-extrabold tracking-[.08em] uppercase" style={{ color: zonaInfo.texto }}>
@@ -415,8 +415,8 @@ export default function Escaner({ sap, registros, conteo, zona, auditor, resumen
         <span className="ml-auto text-[11px] text-slate-500 shrink-0">registra a tu nombre</span>
       </div>
 
-      {/* Carril y posición (fijo abajo en móvil, arriba en escritorio) */}
-      <section className="fixed bottom-0 inset-x-0 z-30 bg-slate-950/95 backdrop-blur border-t border-slate-800 px-3 py-2.5 shadow-2xl md:static md:bg-transparent md:backdrop-blur-none md:border-0 md:p-0 md:shadow-none">
+      {/* Carril y posición (fijo abajo en móvil con superficie sólida sin traspaso, arriba en escritorio) */}
+      <section className="fixed bottom-0 inset-x-0 z-30 bg-[#040B1A] border-t border-[#38BDF8]/30 shadow-[0_-12px_30px_rgba(2,8,23,0.92)] px-3 py-2.5 md:static md:bg-transparent md:border-0 md:p-0 md:shadow-none">
         <div className="max-w-lg mx-auto flex flex-col gap-2">
           <div className="grid grid-cols-[64px_64px_1fr_96px] gap-2 items-center">
             <Flecha etiqueta="Carril anterior" onClick={() => cambiarCarril(-1)}>
@@ -555,7 +555,7 @@ export default function Escaner({ sap, registros, conteo, zona, auditor, resumen
             <input
               ref={inputRef}
               inputMode="numeric"
-              placeholder={modoPrefijo ? `Número (ej. ${PREFIJOS[modoPrefijo].ejemplo})` : "Número de bulto (ej. 6009491901)"}
+              placeholder={modoPrefijo ? `Ej. ${PREFIJOS[modoPrefijo].ejemplo}` : "Número de bulto…"}
               aria-label="Número de bulto"
               value={codigo}
               onChange={(e) => setCodigo(e.target.value)}
@@ -899,15 +899,15 @@ function RecientesEscaner({ registros }) {
             <span
               className={`shrink-0 px-2 py-0.5 rounded-full text-[11px] font-bold ${
                 r.motivo
-                  ? "bg-yellow-400 text-slate-950"
+                  ? "bg-yellow-400 text-[#040B1A]"
                   : r.estado === "OK"
-                  ? "bg-emerald-500/20 text-emerald-300"
+                  ? "bg-emerald-500/20 text-emerald-200 border border-emerald-400/30"
                   : r.estado === "SOBRANTE"
-                  ? "bg-red-500/20 text-red-300"
-                  : "bg-amber-500/20 text-amber-300"
+                  ? "bg-red-500/20 text-red-200 border border-red-400/30"
+                  : "bg-amber-500/20 text-amber-200 border border-amber-400/30"
               }`}
             >
-              {r.motivo ? r.motivo : r.estado === "OK" ? "✓" : r.estado === "SOBRANTE" ? "No en SAP" : `⚠ ${num(r.cantidad_fisica)}`}
+              {r.motivo ? r.motivo : r.estado === "OK" ? "OK" : r.estado === "SOBRANTE" ? "No en SAP" : `Dif. ${num(r.cantidad_fisica)}`}
             </span>
           </div>
         ))}

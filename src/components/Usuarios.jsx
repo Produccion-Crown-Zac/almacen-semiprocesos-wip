@@ -105,11 +105,11 @@ export default function Usuarios({ yo }) {
 
   return (
     <div className="max-w-5xl mx-auto flex flex-col gap-4">
-      <section className="bg-slate-900 border border-slate-800 rounded-2xl p-4 flex flex-col gap-1">
+      <section className="mc-glass mc-enter rounded-2xl p-4 flex flex-col gap-1">
         <h1 className="m-0 text-xl font-bold text-white">Usuarios</h1>
-        <p className="m-0 text-sm text-slate-400">
-          Solo los administradores ven este apartado. Hay dos perfiles: <strong className="text-amber-200">Administrador</strong> (todo, incluida la
-          administración de usuarios) y <strong className="text-sky-200">Usuario</strong> (todo lo demás).
+        <p className="m-0 text-sm text-slate-300">
+          Solo los administradores ven este apartado. Hay dos perfiles: <strong className="text-[#38BDF8]">Administrador</strong> (todo, incluida la
+          administración de usuarios) y <strong className="text-slate-200">Usuario</strong> (todo lo demás).
         </p>
       </section>
 

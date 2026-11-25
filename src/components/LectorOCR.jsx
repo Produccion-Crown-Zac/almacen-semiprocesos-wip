@@ -225,7 +225,7 @@ export default function LectorOCR({ sap, zona, onDetectado, onCerrar }) {
   };
 
   return (
-    <div className="rounded-xl bg-slate-950 border border-cyan-500/50 p-3 flex flex-col gap-2.5">
+    <div className="rounded-xl mc-glass border border-[#38BDF8]/45 p-3 flex flex-col gap-2.5">
       <div className="flex items-center justify-between gap-2">
         <div className="text-xs font-bold text-cyan-300">Lector de número impreso (OCR)</div>
         <button type="button" onClick={onCerrar} aria-label="Cerrar lector OCR" className="p-1 text-slate-400 hover:text-white cursor-pointer">
